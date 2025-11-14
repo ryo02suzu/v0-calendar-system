@@ -8,17 +8,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { Appointment, Staff } from "@/lib/types"
-import { getPatients, createPatient } from "@/lib/db"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
+import type { Patient, Staff } from "@/lib/types"
+import type { CalendarAppointment } from "@/types/api"
 
 interface AppointmentModalProps {
   isOpen: boolean
   onClose: () => void
-  appointment: Appointment | null
+  appointment: CalendarAppointment | null
   staff: Staff[]
-  onSave: (appointment: Appointment) => Promise<void>
+  onSave: (appointment: CalendarAppointment) => Promise<void>
   onDelete: (id: string) => void
 }
 
@@ -28,7 +28,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
     return now.toISOString().split("T")[0]
   }
 
-  const [formData, setFormData] = useState<Partial<Appointment>>({
+  const [formData, setFormData] = useState<Partial<CalendarAppointment>>({
     date: getCurrentDate(),
     start_time: "09:00",
     end_time: "10:00",
@@ -37,7 +37,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
     chair_number: 1,
     notes: "",
   })
-  const [patients, setPatients] = useState<any[]>([])
+  const [patients, setPatients] = useState<Patient[]>([])
   const [isNewPatient, setIsNewPatient] = useState(false)
   const [newPatientData, setNewPatientData] = useState({ name: "", phone: "", email: "" })
   const [isSaving, setIsSaving] = useState(false)
@@ -52,8 +52,14 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
 
   const loadPatients = async () => {
     try {
-      const data = await getPatients()
-      setPatients(data)
+      const response = await fetch("/api/patients", { cache: "no-store" })
+      const json = await response.json()
+
+      if (!response.ok) {
+        throw new Error(json.error || "患者データの取得に失敗しました")
+      }
+
+      setPatients(json.data || [])
     } catch (error) {
       console.error("[v0] Error loading patients:", error)
       setError("患者データの読み込みに失敗しました")
@@ -108,12 +114,8 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
           return
         }
 
-        const newPatient = await createPatient({
-          name: newPatientData.name,
-          phone: newPatientData.phone,
-          email: newPatientData.email,
-          patient_number: `P${Date.now().toString().slice(-6)}`,
-        })
+        const newPatient = await createPatientViaApi(newPatientData)
+        setPatients((prev) => [newPatient, ...prev])
         patientId = newPatient.id
       } else {
         if (!patientId) {
@@ -128,12 +130,9 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
       await onSave({
         ...appointmentData,
         id: appointment?.id || crypto.randomUUID(),
-        clinic_id: "00000000-0000-0000-0000-000000000001",
         patient_id: patientId!,
         staff_id: formData.staff_id!,
-        created_at: appointment?.created_at || new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      } as Appointment)
+      } as CalendarAppointment)
 
       onClose()
     } catch (error: any) {
@@ -373,4 +372,20 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
       </DialogContent>
     </Dialog>
   )
+}
+
+async function createPatientViaApi(patient: { name: string; phone: string; email?: string }) {
+  const response = await fetch("/api/patients", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patient),
+  })
+
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(data.error || "患者の作成に失敗しました")
+  }
+
+  return data.data as Patient
 }

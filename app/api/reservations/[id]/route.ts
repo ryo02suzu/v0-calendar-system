@@ -5,8 +5,16 @@ import {
   AppointmentConflictError,
   AppointmentNotFoundError,
   cancelAppointmentRecord,
+  serializeAppointmentForApi,
   updateAppointmentRecord,
 } from "@/lib/server/appointments"
+import { ensurePatientId } from "@/lib/server/patient"
+
+const patientSchema = z.object({
+  name: z.string().min(1, "患者名は必須です"),
+  phone: z.string().min(1, "電話番号は必須です"),
+  email: z.string().email().optional(),
+})
 
 const updateSchema = z
   .object({
@@ -22,6 +30,7 @@ const updateSchema = z
     status: z.enum(["pending", "confirmed", "cancelled", "completed", "no_show"]).optional(),
     chair_number: z.number().int().positive().optional(),
     notes: z.string().max(1000).optional(),
+    patient: patientSchema.optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "少なくとも1項目を指定してください",
@@ -45,8 +54,16 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   }
 
   try {
-    const data = await updateAppointmentRecord(params.id, payload)
-    return NextResponse.json({ data })
+    let updates = { ...payload }
+    if (payload.patient) {
+      const patientId = await ensurePatientId(payload.patient_id, payload.patient)
+      updates = { ...updates, patient_id: patientId }
+    }
+
+    const { patient: _patient, ...rest } = updates
+
+    const data = await updateAppointmentRecord(params.id, rest)
+    return NextResponse.json({ data: serializeAppointmentForApi(data) })
   } catch (error) {
     if (error instanceof AppointmentConflictError) {
       return NextResponse.json({ error: error.message }, { status: 409 })
@@ -62,8 +79,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
 export async function DELETE(_: NextRequest, { params }: RouteContext) {
   try {
-    await cancelAppointmentRecord(params.id)
-    return NextResponse.json({ success: true })
+    const data = await cancelAppointmentRecord(params.id)
+    return NextResponse.json({ data: serializeAppointmentForApi(data) })
   } catch (error) {
     if (error instanceof AppointmentNotFoundError) {
       return NextResponse.json({ error: error.message }, { status: 404 })

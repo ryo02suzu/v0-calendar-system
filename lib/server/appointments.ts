@@ -1,6 +1,7 @@
 import { CLINIC_ID } from "@/lib/constants"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import type { Appointment } from "@/lib/types"
+import type { ReservationResponse } from "@/types/api"
 
 // NOTE: This file intentionally does not use the "use server" directive even though it
 // only exports server-side utilities. Route Handlers import the error classes defined
@@ -236,5 +237,22 @@ function formatAppointment(raw: any): Appointment {
     ...rest,
     patient: patients ?? undefined,
     staff: staff ?? undefined,
+  }
+}
+
+export function serializeAppointmentForApi(appointment: Appointment): ReservationResponse {
+  return {
+    id: appointment.id,
+    patient_id: appointment.patient_id,
+    staff_id: appointment.staff_id,
+    date: appointment.date,
+    start_time: appointment.start_time,
+    end_time: appointment.end_time,
+    treatment_type: appointment.treatment_type,
+    status: appointment.status,
+    chair_number: appointment.chair_number,
+    notes: appointment.notes,
+    patient: appointment.patient,
+    staff: appointment.staff,
   }
 }

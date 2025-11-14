@@ -6,15 +6,16 @@ import { WeekView } from "@/components/week-view"
 import { DayView } from "@/components/day-view"
 import { MonthView } from "@/components/month-view"
 import { AppointmentModal } from "@/components/appointment-modal"
-import type { Appointment, Staff } from "@/lib/types"
+import type { Staff } from "@/lib/types"
+import type { CalendarAppointment, ReservationCreatePayload, ReservationUpdatePayload } from "@/types/api"
 import { useToast } from "@/hooks/use-toast"
 
 export function CalendarView() {
   const [viewMode, setViewMode] = useState<"day" | "week" | "month">("week")
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [appointments, setAppointments] = useState<CalendarAppointment[]>([])
   const [staff, setStaff] = useState<Staff[]>([])
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
+  const [selectedAppointment, setSelectedAppointment] = useState<CalendarAppointment | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
@@ -28,7 +29,7 @@ export function CalendarView() {
         fetch("/api/staff", { cache: "no-store" }),
       ])
 
-      const appointmentsJson = await appointmentsResponse.json()
+      const appointmentsJson: { data?: CalendarAppointment[]; error?: string } = await appointmentsResponse.json()
       const staffJson = await staffResponse.json()
 
       if (!appointmentsResponse.ok) {
@@ -61,21 +62,37 @@ export function CalendarView() {
     setIsModalOpen(true)
   }
 
-  const handleEditAppointment = (appointment: Appointment) => {
+  const handleEditAppointment = (appointment: CalendarAppointment) => {
     setSelectedAppointment(appointment)
     setIsModalOpen(true)
   }
 
-  const handleSaveAppointment = async (appointment: Appointment) => {
+  const handleSaveAppointment = async (appointment: CalendarAppointment) => {
     try {
+      if (!appointment.patient_id || !appointment.staff_id) {
+        throw new Error("患者と担当者を選択してください")
+      }
+
+      const basePayload = {
+        patient_id: appointment.patient_id,
+        staff_id: appointment.staff_id,
+        date: appointment.date,
+        start_time: appointment.start_time,
+        end_time: appointment.end_time,
+        treatment_type: appointment.treatment_type,
+        status: appointment.status,
+        chair_number: appointment.chair_number,
+        notes: appointment.notes,
+      }
+
       if (selectedAppointment) {
-        await mutateReservation(`/api/reservations/${appointment.id}`, "PATCH", appointment)
+        await mutateReservation(`/api/reservations/${appointment.id}`, "PATCH", basePayload)
         toast({
           title: "保存完了",
           description: "予約を更新しました",
         })
       } else {
-        await mutateReservation(`/api/reservations`, "POST", appointment)
+        await mutateReservation(`/api/reservations`, "POST", basePayload as ReservationCreatePayload)
         toast({
           title: "保存完了",
           description: "予約を作成しました",
@@ -177,19 +194,11 @@ export function CalendarView() {
   )
 }
 
-async function mutateReservation(url: string, method: "POST" | "PATCH", appointment: Appointment) {
-  const payload = {
-    patient_id: appointment.patient_id,
-    staff_id: appointment.staff_id,
-    date: appointment.date,
-    start_time: appointment.start_time,
-    end_time: appointment.end_time,
-    treatment_type: appointment.treatment_type,
-    status: appointment.status,
-    chair_number: appointment.chair_number,
-    notes: appointment.notes,
-  }
-
+async function mutateReservation(
+  url: string,
+  method: "POST" | "PATCH",
+  payload: ReservationCreatePayload | ReservationUpdatePayload,
+) {
   const response = await fetch(url, {
     method,
     headers: { "Content-Type": "application/json" },
