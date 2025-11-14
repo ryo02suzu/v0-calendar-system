@@ -7,7 +7,6 @@ import { DayView } from "@/components/day-view"
 import { MonthView } from "@/components/month-view"
 import { AppointmentModal } from "@/components/appointment-modal"
 import type { Appointment, Staff } from "@/lib/types"
-import { getAppointments, getStaff, createAppointment, updateAppointment, deleteAppointment } from "@/lib/db"
 import { useToast } from "@/hooks/use-toast"
 
 export function CalendarView() {
@@ -20,16 +19,27 @@ export function CalendarView() {
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
 
-  useEffect(() => {
-    loadData()
-  }, [currentDate])
-
-  const loadData = async () => {
+  const loadData = async (date: Date) => {
     setIsLoading(true)
     try {
-      const [appointmentsData, staffData] = await Promise.all([getAppointments(), getStaff()])
-      setAppointments(appointmentsData)
-      setStaff(staffData)
+      const dateString = date.toISOString().split("T")[0]
+      const [appointmentsResponse, staffResponse] = await Promise.all([
+        fetch(`/api/reservations?date=${dateString}`, { cache: "no-store" }),
+        fetch("/api/staff", { cache: "no-store" }),
+      ])
+
+      const appointmentsJson = await appointmentsResponse.json()
+      const staffJson = await staffResponse.json()
+
+      if (!appointmentsResponse.ok) {
+        throw new Error(appointmentsJson.error || "予約データの取得に失敗しました")
+      }
+      if (!staffResponse.ok) {
+        throw new Error(staffJson.error || "スタッフ情報の取得に失敗しました")
+      }
+
+      setAppointments(appointmentsJson.data || [])
+      setStaff(staffJson.data || [])
     } catch (error) {
       console.error("[v0] Error loading data:", error)
       toast({
@@ -41,6 +51,10 @@ export function CalendarView() {
       setIsLoading(false)
     }
   }
+
+  useEffect(() => {
+    loadData(currentDate)
+  }, [currentDate])
 
   const handleCreateAppointment = () => {
     setSelectedAppointment(null)
@@ -55,19 +69,19 @@ export function CalendarView() {
   const handleSaveAppointment = async (appointment: Appointment) => {
     try {
       if (selectedAppointment) {
-        await updateAppointment(appointment.id, appointment)
+        await mutateReservation(`/api/reservations/${appointment.id}`, "PATCH", appointment)
         toast({
           title: "保存完了",
           description: "予約を更新しました",
         })
       } else {
-        await createAppointment(appointment)
+        await mutateReservation(`/api/reservations`, "POST", appointment)
         toast({
           title: "保存完了",
           description: "予約を作成しました",
         })
       }
-      await loadData()
+      await loadData(currentDate)
       setIsModalOpen(false)
     } catch (error: any) {
       console.error("[v0] Error saving appointment:", error)
@@ -82,12 +96,21 @@ export function CalendarView() {
 
   const handleDeleteAppointment = async (id: string) => {
     try {
-      await deleteAppointment(id)
+      const response = await fetch(`/api/reservations/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "予約の削除に失敗しました")
+      }
+
       toast({
         title: "削除完了",
         description: "予約を削除しました",
       })
-      await loadData()
+      await loadData(currentDate)
       setIsModalOpen(false)
     } catch (error) {
       console.error("[v0] Error deleting appointment:", error)
@@ -152,4 +175,29 @@ export function CalendarView() {
       />
     </div>
   )
+}
+
+async function mutateReservation(url: string, method: "POST" | "PATCH", appointment: Appointment) {
+  const payload = {
+    patient_id: appointment.patient_id,
+    staff_id: appointment.staff_id,
+    date: appointment.date,
+    start_time: appointment.start_time,
+    end_time: appointment.end_time,
+    treatment_type: appointment.treatment_type,
+    status: appointment.status,
+    chair_number: appointment.chair_number,
+    notes: appointment.notes,
+  }
+
+  const response = await fetch(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.error || "予約の保存に失敗しました")
+  }
 }
