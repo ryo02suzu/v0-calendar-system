@@ -1,13 +1,14 @@
 "use client"
 
 import { isSameDay, parseISO } from "date-fns"
-import type { Appointment, Staff } from "@/lib/types"
+import type { Staff } from "@/lib/types"
+import type { CalendarAppointment } from "@/types/api"
 
 interface DayViewProps {
   currentDate: Date
-  appointments: Appointment[]
+  appointments: CalendarAppointment[]
   staff: Staff[]
-  onAppointmentClick: (appointment: Appointment) => void
+  onAppointmentClick: (appointment: CalendarAppointment) => void
 }
 
 export function DayView({ currentDate, appointments, staff, onAppointmentClick }: DayViewProps) {

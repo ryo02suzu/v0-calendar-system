@@ -12,12 +12,12 @@ import {
   parseISO,
 } from "date-fns"
 import { ja } from "date-fns/locale"
-import type { Appointment } from "@/lib/types"
+import type { CalendarAppointment } from "@/types/api"
 
 interface MonthViewProps {
   currentDate: Date
-  appointments: Appointment[]
-  onAppointmentClick: (appointment: Appointment) => void
+  appointments: CalendarAppointment[]
+  onAppointmentClick: (appointment: CalendarAppointment) => void
 }
 
 export function MonthView({ currentDate, appointments, onAppointmentClick }: MonthViewProps) {
