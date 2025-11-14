@@ -33,6 +33,18 @@ This dashboard now exposes reservation endpoints under `/api/reservations` so th
 
 All handlers rely on the server-only Supabase client defined in `lib/supabase/admin.ts`, ensuring the Service Role key never reaches the browser. Client components (for example `components/calendar-view.tsx`) communicate exclusively with these APIs via `fetch`, so the existing layout is preserved while the data flow is production-friendly.
 
+## Securing the dashboard (no layout changes required)
+
+To move closer to a commercial setup without altering the UI, the app now includes a global HTTP Basic Authentication gate implemented in `middleware.ts`. Every page and API route (except static assets) checks the credentials before running any business logic, which prevents unauthenticated access to reservation data even if someone discovers the endpoints.
+
+1. **Set credentials** – Configure the following environment variables in Vercel (and locally) so the middleware can validate incoming requests:
+   - `DASHBOARD_BASIC_AUTH_USER`
+   - `DASHBOARD_BASIC_AUTH_PASSWORD`
+2. **Share the login with staff** – Browsers will automatically prompt for the username/password once and cache it for the session, so the existing layout remains untouched.
+3. **External integrations** – Patient-facing services or automation scripts must send the same `Authorization: Basic ...` header when calling `/api/reservations` or `/api/patients`. Manage and rotate the credentials just like any other secret to keep access under control.
+
+If you skip these variables (for example during local prototyping) the middleware logs a warning and allows the request to continue, but production deployments should always define them.
+
 ## How It Works
 
 1. Create and modify your project using [v0.app](https://v0.app)
