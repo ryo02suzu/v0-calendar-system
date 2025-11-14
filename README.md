@@ -22,6 +22,17 @@ Continue building your app on:
 
 **[https://v0.app/chat/2oIhWiOvPxI](https://v0.app/chat/2oIhWiOvPxI)**
 
+## Reservation API & Supabase integration
+
+This dashboard now exposes reservation endpoints under `/api/reservations` so that both the clinic calendar and external patient-facing frontends can use the same contract:
+
+- `GET /api/reservations?date=YYYY-MM-DD` – fetch serialized appointments for the specified day.
+- `POST /api/reservations` – create a reservation after Zod validation and Supabase conflict checks.
+- `PATCH /api/reservations/:id` – update the provided fields and re-run conflict detection.
+- `DELETE /api/reservations/:id` – cancel (soft delete) a reservation.
+
+All handlers rely on the server-only Supabase client defined in `lib/supabase/admin.ts`, ensuring the Service Role key never reaches the browser. Client components (for example `components/calendar-view.tsx`) communicate exclusively with these APIs via `fetch`, so the existing layout is preserved while the data flow is production-friendly.
+
 ## How It Works
 
 1. Create and modify your project using [v0.app](https://v0.app)
