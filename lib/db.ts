@@ -985,3 +985,4 @@ export async function initializeClinic() {
     throw error
   }
 }
+
