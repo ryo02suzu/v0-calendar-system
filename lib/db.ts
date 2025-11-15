@@ -1,126 +1,11 @@
 "use server"
 
+import { CLINIC_ID } from "./constants"
 import { supabaseAdmin } from "./supabase/admin"
-
-// クリニックID（今井泉歯科医院専用）
-const CLINIC_ID = "00000000-0000-0000-0000-000000000001"
-
-// 予約関連
-export async function getAppointments(date?: Date) {
-  try {
-    let query = supabaseAdmin
-      .from("appointments")
-      .select(`
-        *,
-        patients!appointments_patient_id_fkey(*),
-        staff!appointments_staff_id_fkey(*)
-      `)
-      .eq("clinic_id", CLINIC_ID)
-      .order("date", { ascending: true })
-      .order("start_time", { ascending: true })
-
-    if (date) {
-      const dateStr = date.toISOString().split("T")[0]
-      query = query.eq("date", dateStr)
-    }
-
-    const { data, error } = await query
-
-    if (error) throw error
-
-    // データ形式を整形（患者とスタッフ情報を適切なプロパティ名に変換）
-    const formattedData =
-      data?.map((appointment) => ({
-        ...appointment,
-        patient: appointment.patients,
-        staff: appointment.staff,
-      })) || []
-
-    return formattedData
-  } catch (error) {
-    console.error("[v0] Error fetching appointments:", error)
-    return []
-  }
-}
-
-export async function createAppointment(appointment: any) {
-  try {
-    const hasConflict = await checkAppointmentConflict(
-      appointment.date,
-      appointment.start_time,
-      appointment.end_time,
-      appointment.staff_id,
-    )
-
-    if (hasConflict) {
-      throw new Error("この時間帯は既に予約が入っています。別の時間を選択してください。")
-    }
-
-    const { data, error } = await supabaseAdmin
-      .from("appointments")
-      .insert({
-        ...appointment,
-        clinic_id: CLINIC_ID,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .select()
-      .single()
-
-    if (error) throw error
-    return data
-  } catch (error) {
-    console.error("[v0] Error creating appointment:", error)
-    throw error
-  }
-}
-
-export async function updateAppointment(id: string, appointment: any) {
-  try {
-    const hasConflict = await checkAppointmentConflict(
-      appointment.date,
-      appointment.start_time,
-      appointment.end_time,
-      appointment.staff_id,
-      id,
-    )
-
-    if (hasConflict) {
-      throw new Error("この時間帯は既に予約が入っています。別の時間を選択してください。")
-    }
-
-    const { data, error } = await supabaseAdmin
-      .from("appointments")
-      .update({
-        ...appointment,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .eq("clinic_id", CLINIC_ID)
-      .select()
-      .single()
-
-    if (error) throw error
-    return data
-  } catch (error) {
-    console.error("[v0] Error updating appointment:", error)
-    throw error
-  }
-}
-
-export async function deleteAppointment(id: string) {
-  try {
-    const { error } = await supabaseAdmin.from("appointments").delete().eq("id", id).eq("clinic_id", CLINIC_ID)
-
-    if (error) throw error
-  } catch (error) {
-    console.error("[v0] Error deleting appointment:", error)
-    throw error
-  }
-}
+import type { Patient } from "./types"
 
 // 患者関連
-export async function getPatients() {
+export async function getPatients(): Promise<Patient[]> {
   try {
     const { data, error } = await supabaseAdmin
       .from("patients")
@@ -129,19 +14,20 @@ export async function getPatients() {
       .order("created_at", { ascending: false })
 
     if (error) throw error
-    return data || []
+    return (data || []).map(mapPatientFromDb)
   } catch (error) {
     console.error("[v0] Error fetching patients:", error)
     return []
   }
 }
 
-export async function createPatient(patient: any) {
+export async function createPatient(patient: Partial<Patient>) {
   try {
+    const payload = mapPatientPayloadToDb(patient)
     const { data, error } = await supabaseAdmin
       .from("patients")
       .insert({
-        ...patient,
+        ...payload,
         clinic_id: CLINIC_ID,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -150,19 +36,20 @@ export async function createPatient(patient: any) {
       .single()
 
     if (error) throw error
-    return data
+    return mapPatientFromDb(data)
   } catch (error) {
     console.error("[v0] Error creating patient:", error)
     throw error
   }
 }
 
-export async function updatePatient(id: string, patient: any) {
+export async function updatePatient(id: string, patient: Partial<Patient>) {
   try {
+    const payload = mapPatientPayloadToDb(patient)
     const { data, error } = await supabaseAdmin
       .from("patients")
       .update({
-        ...patient,
+        ...payload,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
@@ -171,11 +58,48 @@ export async function updatePatient(id: string, patient: any) {
       .single()
 
     if (error) throw error
-    return data
+    return mapPatientFromDb(data)
   } catch (error) {
     console.error("[v0] Error updating patient:", error)
     throw error
   }
+}
+
+const PATIENT_APP_TO_DB_FIELD_MAP: Record<string, string> = {
+  kana: "name_kana",
+  date_of_birth: "birth_date",
+  medical_notes: "notes",
+}
+
+const PATIENT_DB_TO_APP_FIELD_MAP: Record<string, string> = {
+  name_kana: "kana",
+  birth_date: "date_of_birth",
+  notes: "medical_notes",
+}
+
+function mapPatientPayloadToDb(patient: Partial<Patient> = {}) {
+  const payload: Record<string, any> = {}
+
+  for (const [key, value] of Object.entries(patient)) {
+    if (value === undefined) continue
+    const dbKey = PATIENT_APP_TO_DB_FIELD_MAP[key] ?? key
+    payload[dbKey] = value === "" ? null : value
+  }
+
+  return payload
+}
+
+function mapPatientFromDb(record: Record<string, any>): Patient {
+  const mapped: Record<string, any> = { ...record }
+
+  for (const [dbKey, appKey] of Object.entries(PATIENT_DB_TO_APP_FIELD_MAP)) {
+    if (dbKey in mapped) {
+      mapped[appKey] = mapped[dbKey] ?? undefined
+      delete mapped[dbKey]
+    }
+  }
+
+  return mapped as Patient
 }
 
 // スタッフ関連
@@ -765,39 +689,3 @@ export async function initializeClinic() {
   }
 }
 
-async function checkAppointmentConflict(
-  date: string,
-  startTime: string,
-  endTime: string,
-  staffId: string,
-  excludeAppointmentId?: string,
-): Promise<boolean> {
-  try {
-    let query = supabaseAdmin
-      .from("appointments")
-      .select("id")
-      .eq("clinic_id", CLINIC_ID)
-      .eq("date", date)
-      .eq("staff_id", staffId)
-      .neq("status", "cancelled")
-      .or(
-        `and(start_time.lte.${startTime},end_time.gt.${startTime}),and(start_time.lt.${endTime},end_time.gte.${endTime}),and(start_time.gte.${startTime},end_time.lte.${endTime})`,
-      )
-
-    if (excludeAppointmentId) {
-      query = query.neq("id", excludeAppointmentId)
-    }
-
-    const { data, error } = await query
-
-    if (error) {
-      console.error("[v0] Error checking appointment conflict:", error)
-      return false
-    }
-
-    return data && data.length > 0
-  } catch (error) {
-    console.error("[v0] Error in checkAppointmentConflict:", error)
-    return false
-  }
-}

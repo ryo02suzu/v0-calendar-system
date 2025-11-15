@@ -2,13 +2,14 @@
 
 import { format, startOfWeek, addDays, isSameDay, parseISO } from "date-fns"
 import { ja } from "date-fns/locale"
-import type { Appointment, Staff } from "@/lib/types"
+import type { Staff } from "@/lib/types"
+import type { CalendarAppointment } from "@/types/api"
 
 interface WeekViewProps {
   currentDate: Date
-  appointments: Appointment[]
+  appointments: CalendarAppointment[]
   staff: Staff[]
-  onAppointmentClick: (appointment: Appointment) => void
+  onAppointmentClick: (appointment: CalendarAppointment) => void
 }
 
 export function WeekView({ currentDate, appointments, staff, onAppointmentClick }: WeekViewProps) {
