@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Building2, Users, Bell, Clock, Calendar, DollarSign, SettingsIcon } from "lucide-react"
+import { Building2, Users, Bell, Clock, Calendar, DollarSign, SettingsIcon, Database } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -29,6 +29,8 @@ import {
 } from "@/lib/db"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ReseconSettings } from "@/components/resecon-settings"
+import { ReminderSettings } from "@/components/reminder-settings"
 
 export function Settings() {
   const [clinicInfo, setClinicInfo] = useState({
@@ -212,6 +214,8 @@ export function Settings() {
           <TabsTrigger value="staff">スタッフ</TabsTrigger>
           <TabsTrigger value="hours">診療時間</TabsTrigger>
           <TabsTrigger value="system">システム設定</TabsTrigger>
+          <TabsTrigger value="reminders">リマインダー</TabsTrigger>
+          <TabsTrigger value="resecon">レセコン連携</TabsTrigger>
         </TabsList>
 
         <TabsContent value="clinic" className="space-y-6">
@@ -715,6 +719,14 @@ export function Settings() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="reminders" className="space-y-6">
+          <ReminderSettings />
+        </TabsContent>
+
+        <TabsContent value="resecon" className="space-y-6">
+          <ReseconSettings />
         </TabsContent>
       </Tabs>
     </div>
