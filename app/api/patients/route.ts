@@ -3,12 +3,7 @@ import { z } from "zod"
 
 import { createPatient, getPatients } from "@/lib/db"
 import { generatePatientNumber } from "@/lib/utils/patient-number"
-
-const patientSchema = z.object({
-  name: z.string().min(1, "患者名は必須です"),
-  phone: z.string().min(1, "電話番号は必須です"),
-  email: z.string().email().optional(),
-})
+import { patientCreateSchema } from "@/lib/validations/patient"
 
 export async function GET() {
   try {
@@ -23,7 +18,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const json = await request.json()
-    const payload = patientSchema.parse(json)
+const payload = patientCreateSchema.parse(json)
+
 
     const patient = await createPatient({
       ...payload,

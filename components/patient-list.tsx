@@ -5,12 +5,22 @@ import { Search, Plus, Phone, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { getPatients, createPatient, updatePatient } from "@/lib/db"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { Patient } from "@/lib/types"
+
+type PatientFormState = {
+  name: string
+  kana?: string
+  phone: string
+  email?: string
+  date_of_birth?: string
+  gender?: string
+  address?: string
+  medical_notes?: string
+}
 
 export function PatientList() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -18,7 +28,7 @@ export function PatientList() {
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null)
-  const [formData, setFormData] = useState<Partial<Patient>>({
+  const [formData, setFormData] = useState<PatientFormState>({
     name: "",
     kana: "",
     phone: "",
@@ -36,7 +46,7 @@ export function PatientList() {
   const loadPatients = async () => {
     setIsLoading(true)
     try {
-      const data = await getPatients()
+      const data = await fetchPatientsFromApi()
       setPatients(data)
     } catch (error) {
       console.error("[v0] Error loading patients:", error)
@@ -48,7 +58,16 @@ export function PatientList() {
   function openDialog(patient?: Patient) {
     if (patient) {
       setEditingPatient(patient)
-      setFormData(patient)
+      setFormData({
+        name: patient.name,
+        kana: patient.kana || "",
+        phone: patient.phone,
+        email: patient.email || "",
+        date_of_birth: patient.date_of_birth || "",
+        gender: patient.gender || "",
+        address: patient.address || "",
+        medical_notes: patient.medical_notes || "",
+      })
     } else {
       setEditingPatient(null)
       setFormData({
@@ -73,12 +92,9 @@ export function PatientList() {
       }
 
       if (editingPatient) {
-        await updatePatient(editingPatient.id!, formData)
+        await updatePatientViaApi(editingPatient.id!, formData)
       } else {
-        await createPatient({
-          ...formData,
-          patient_number: `P${Date.now().toString().slice(-6)}`,
-        })
+        await createPatientViaApi(formData)
       }
       await loadPatients()
       setIsDialogOpen(false)
@@ -285,4 +301,43 @@ export function PatientList() {
       </Dialog>
     </div>
   )
+}
+
+type PatientPayload = PatientFormState
+
+async function fetchPatientsFromApi(): Promise<Patient[]> {
+  const response = await fetch("/api/patients", { cache: "no-store" })
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(data.error || "患者情報の取得に失敗しました")
+  }
+
+  return (data.data as Patient[]) || []
+}
+
+async function createPatientViaApi(patient: PatientPayload) {
+  const response = await fetch("/api/patients", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patient),
+  })
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(data.error || "患者の作成に失敗しました")
+  }
+}
+
+async function updatePatientViaApi(id: string, patient: PatientPayload) {
+  const response = await fetch(`/api/patients/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patient),
+  })
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(data.error || "患者情報の更新に失敗しました")
+  }
 }
