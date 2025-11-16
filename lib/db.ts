@@ -2,9 +2,11 @@
 
 import { CLINIC_ID } from "./constants"
 import { supabaseAdmin } from "./supabase/admin"
+import type { Patient } from "./types"
 
 // 患者関連
-export async function getPatients() {
+export async function getPatients(): Promise<Patient[]> {
+
   try {
     const { data, error } = await supabaseAdmin
       .from("patients")
@@ -13,19 +15,21 @@ export async function getPatients() {
       .order("created_at", { ascending: false })
 
     if (error) throw error
-    return data || []
+return (data || []).map(mapPatientFromDb)
+
   } catch (error) {
     console.error("[v0] Error fetching patients:", error)
     return []
   }
 }
 
-export async function createPatient(patient: any) {
+export async function createPatient(patient: Partial<Patient>) {
   try {
+    const payload = mapPatientPayloadToDb(patient)
     const { data, error } = await supabaseAdmin
       .from("patients")
       .insert({
-        ...patient,
+        ...payload,
         clinic_id: CLINIC_ID,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -34,19 +38,20 @@ export async function createPatient(patient: any) {
       .single()
 
     if (error) throw error
-    return data
+    return mapPatientFromDb(data)
   } catch (error) {
     console.error("[v0] Error creating patient:", error)
     throw error
   }
 }
 
-export async function updatePatient(id: string, patient: any) {
+export async function updatePatient(id: string, patient: Partial<Patient>) {
   try {
+    const payload = mapPatientPayloadToDb(patient)
     const { data, error } = await supabaseAdmin
       .from("patients")
       .update({
-        ...patient,
+        ...payload,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
@@ -55,11 +60,50 @@ export async function updatePatient(id: string, patient: any) {
       .single()
 
     if (error) throw error
-    return data
+    return mapPatientFromDb(data)
   } catch (error) {
     console.error("[v0] Error updating patient:", error)
     throw error
   }
+}
+
+const PATIENT_APP_TO_DB_FIELD_MAP: Record<string, string> = {
+  kana: "name_kana",
+  date_of_birth: "birth_date",
+  medical_notes: "notes",
+}
+
+const PATIENT_DB_TO_APP_FIELD_MAP: Record<string, string> = {
+  name_kana: "kana",
+  birth_date: "date_of_birth",
+  notes: "medical_notes",
+}
+
+}
+
+function mapPatientPayloadToDb(patient: Partial<Patient> = {}) {
+  const payload: Record<string, any> = {}
+
+  for (const [key, value] of Object.entries(patient)) {
+    if (value === undefined) continue
+    const dbKey = PATIENT_APP_TO_DB_FIELD_MAP[key] ?? key
+    payload[dbKey] = value === "" ? null : value
+  }
+
+  return payload
+}
+
+function mapPatientFromDb(record: Record<string, any>): Patient {
+  const mapped: Record<string, any> = { ...record }
+
+  for (const [dbKey, appKey] of Object.entries(PATIENT_DB_TO_APP_FIELD_MAP)) {
+    if (dbKey in mapped) {
+      mapped[appKey] = mapped[dbKey] ?? undefined
+      delete mapped[dbKey]
+    }
+  }
+
+  return mapped as Patient
 }
 
 // スタッフ関連

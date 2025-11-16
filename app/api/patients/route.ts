@@ -18,8 +18,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const json = await request.json()
-const payload = patientCreateSchema.parse(json)
-
+    const payload = patientCreateSchema.parse(json)
 
     const patient = await createPatient({
       ...payload,
