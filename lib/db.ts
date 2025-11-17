@@ -79,8 +79,6 @@ const PATIENT_DB_TO_APP_FIELD_MAP: Record<string, string> = {
   notes: "medical_notes",
 }
 
-}
-
 function mapPatientPayloadToDb(patient: Partial<Patient> = {}) {
   const payload: Record<string, any> = {}
 
