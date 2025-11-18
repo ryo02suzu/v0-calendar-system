@@ -33,6 +33,7 @@ import { ReseconSettings } from "@/components/resecon-settings"
 import { ReminderSettings } from "@/components/reminder-settings"
 
 export function Settings() {
+  const [activeTab, setActiveTab] = useState("clinic")
   const [clinicInfo, setClinicInfo] = useState({
     name: "今泉歯科クリニック",
     phone: "03-1234-5678",
@@ -207,7 +208,7 @@ export function Settings() {
         <p className="text-gray-600 mt-1">クリニックの各種設定</p>
       </div>
 
-      <Tabs defaultValue="clinic" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="clinic">クリニック情報</TabsTrigger>
           <TabsTrigger value="services">診療メニュー</TabsTrigger>
