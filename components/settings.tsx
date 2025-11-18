@@ -651,35 +651,67 @@ export function Settings() {
             <CardContent className="space-y-4">
               <div>
                 <Label>チェア数</Label>
-                <Input
-                  type="number"
-                  value={clinicSettings?.chairs_count || 3}
-                  onChange={(e) =>
-                    setClinicSettings({ ...clinicSettings, chairs_count: Number.parseInt(e.target.value) })
+                <Select
+                  value={String(clinicSettings?.chairs_count || 3)}
+                  onValueChange={(v) =>
+                    setClinicSettings({ ...clinicSettings, chairs_count: Number(v) })
                   }
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1</SelectItem>
+                    <SelectItem value="2">2</SelectItem>
+                    <SelectItem value="3">3</SelectItem>
+                    <SelectItem value="4">4</SelectItem>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="6">6</SelectItem>
+                    <SelectItem value="7">7</SelectItem>
+                    <SelectItem value="8">8</SelectItem>
+                  </SelectContent>
+                </Select>
                 <p className="text-sm text-gray-600 mt-1">同時に対応できる患者数</p>
               </div>
               <div>
                 <Label>予約可能期間（日数）</Label>
-                <Input
-                  type="number"
-                  value={clinicSettings?.booking_advance_days || 60}
-                  onChange={(e) =>
-                    setClinicSettings({ ...clinicSettings, booking_advance_days: Number.parseInt(e.target.value) })
+                <Select
+                  value={String(clinicSettings?.booking_advance_days || 60)}
+                  onValueChange={(v) =>
+                    setClinicSettings({ ...clinicSettings, booking_advance_days: Number(v) })
                   }
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="30">30</SelectItem>
+                    <SelectItem value="60">60</SelectItem>
+                    <SelectItem value="90">90</SelectItem>
+                    <SelectItem value="180">180</SelectItem>
+                    <SelectItem value="365">365</SelectItem>
+                  </SelectContent>
+                </Select>
                 <p className="text-sm text-gray-600 mt-1">何日先まで予約を受け付けるか</p>
               </div>
               <div>
                 <Label>予約間隔（分）</Label>
-                <Input
-                  type="number"
-                  value={clinicSettings?.booking_buffer_minutes || 15}
-                  onChange={(e) =>
-                    setClinicSettings({ ...clinicSettings, booking_buffer_minutes: Number.parseInt(e.target.value) })
+                <Select
+                  value={String(clinicSettings?.booking_buffer_minutes || 15)}
+                  onValueChange={(v) =>
+                    setClinicSettings({ ...clinicSettings, booking_buffer_minutes: Number(v) })
                   }
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="15">15</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="30">30</SelectItem>
+                  </SelectContent>
+                </Select>
                 <p className="text-sm text-gray-600 mt-1">予約と予約の間の時間</p>
               </div>
               <Button onClick={handleSaveSettings}>保存</Button>
