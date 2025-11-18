@@ -1,11 +1,13 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Bell, Settings, User, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 export function Header() {
+  const router = useRouter()
   const [showNotifications, setShowNotifications] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
@@ -83,7 +85,7 @@ export function Header() {
             )}
           </div>
 
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" onClick={() => router.push("/settings")}>
             <Settings className="w-5 h-5" />
           </Button>
 
@@ -99,13 +101,24 @@ export function Header() {
                   <p className="text-sm text-gray-600">管理者</p>
                 </div>
                 <div className="p-2">
-                  <Button variant="ghost" className="w-full justify-start text-sm">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-sm"
+                    onClick={() => {
+                      setShowUserMenu(false)
+                      router.push("/profile")
+                    }}
+                  >
                     プロフィール
                   </Button>
-                  <Button variant="ghost" className="w-full justify-start text-sm">
-                    アカウント設定
-                  </Button>
-                  <Button variant="ghost" className="w-full justify-start text-sm text-red-600">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-sm text-red-600"
+                    onClick={() => {
+                      console.log("logout")
+                      setShowUserMenu(false)
+                    }}
+                  >
                     ログアウト
                   </Button>
                 </div>
