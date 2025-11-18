@@ -63,7 +63,6 @@ export function Settings() {
   // スタッフ編集用
   const [editingStaff, setEditingStaff] = useState<any>(null)
   const [isStaffDialogOpen, setIsStaffDialogOpen] = useState(false)
-  const [isSavingStaff, setIsSavingStaff] = useState(false)
 
   // 休診日追加用
   const [isHolidayDialogOpen, setIsHolidayDialogOpen] = useState(false)
@@ -146,8 +145,6 @@ export function Settings() {
   }
 
   async function handleSaveStaff() {
-    if (isSavingStaff) return
-    setIsSavingStaff(true)
     try {
       if (editingStaff?.id) {
         await updateStaff(editingStaff.id, editingStaff)
@@ -159,8 +156,6 @@ export function Settings() {
       setEditingStaff(null)
     } catch (error) {
       alert("保存に失敗しました")
-    } finally {
-      setIsSavingStaff(false)
     }
   }
 
@@ -500,9 +495,7 @@ export function Settings() {
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button onClick={handleSaveStaff} disabled={isSavingStaff}>
-                        {isSavingStaff ? "保存中..." : "保存"}
-                      </Button>
+                      <Button onClick={handleSaveStaff}>保存</Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
