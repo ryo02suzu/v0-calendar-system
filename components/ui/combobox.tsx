@@ -35,6 +35,10 @@ interface ComboboxProps {
   className?: string
 }
 
+/**
+ * A searchable combobox component that allows users to select from a list of options.
+ * Features a search input to filter options by their label or searchText.
+ */
 export function Combobox({
   options,
   value,
