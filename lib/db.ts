@@ -1050,3 +1050,66 @@ export async function initializeClinic() {
   }
 }
 
+// 通知関連
+export async function getNotifications(limit: number = 50) {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("notifications")
+      .select("*")
+      .eq("clinic_id", CLINIC_ID)
+      .order("created_at", { ascending: false })
+      .limit(limit)
+
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error("[v0] Error fetching notifications:", error)
+    return []
+  }
+}
+
+export async function markNotificationRead(id: string) {
+  try {
+    const now = new Date().toISOString()
+    const { data, error } = await supabaseAdmin
+      .from("notifications")
+      .update({
+        is_read: true,
+        read_at: now,
+        updated_at: now,
+      })
+      .eq("id", id)
+      .eq("clinic_id", CLINIC_ID)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  } catch (error) {
+    console.error("[v0] Error marking notification as read:", error)
+    throw error
+  }
+}
+
+export async function markAllNotificationsRead() {
+  try {
+    const now = new Date().toISOString()
+    const { data, error } = await supabaseAdmin
+      .from("notifications")
+      .update({
+        is_read: true,
+        read_at: now,
+        updated_at: now,
+      })
+      .eq("clinic_id", CLINIC_ID)
+      .eq("is_read", false)
+      .select()
+
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error("[v0] Error marking all notifications as read:", error)
+    throw error
+  }
+}
+
