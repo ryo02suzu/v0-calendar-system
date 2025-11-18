@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
-import type { Patient, Staff } from "@/lib/types"
+import type { Patient, Staff, Service } from "@/lib/types"
 import type { CalendarAppointment } from "@/types/api"
 
 interface AppointmentModalProps {
@@ -38,6 +38,9 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
     notes: "",
   })
   const [patients, setPatients] = useState<Patient[]>([])
+  const [services, setServices] = useState<Service[]>([])
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null)
+  const [userEndTimeManuallyEdited, setUserEndTimeManuallyEdited] = useState(false)
   const [isNewPatient, setIsNewPatient] = useState(false)
   const [newPatientData, setNewPatientData] = useState({ name: "", phone: "", email: "" })
   const [isSaving, setIsSaving] = useState(false)
@@ -46,6 +49,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
   useEffect(() => {
     if (isOpen) {
       loadPatients()
+      loadServices()
       setError(null)
     }
   }, [isOpen])
@@ -66,10 +70,101 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
     }
   }
 
+  const loadServices = async () => {
+    try {
+      const response = await fetch("/api/services", { cache: "no-store" })
+      const json = await response.json()
+
+      if (!response.ok) {
+        throw new Error(json.error || "サービスデータの取得に失敗しました")
+      }
+
+      setServices(json.data || [])
+    } catch (error) {
+      console.error("[v0] Error loading services:", error)
+      // Fail gracefully - services list will be empty
+      setServices([])
+    }
+  }
+
+  // Helper function to truncate time format from HH:MM:ss to HH:MM
+  const truncateTimeFormat = (time: string | undefined): string => {
+    if (!time) return ""
+    return time.substring(0, 5) // Get only HH:MM part
+  }
+
+  // Helper function to add minutes to a time string (HH:MM format)
+  const addMinutesToTime = (timeStr: string, minutes: number): string => {
+    const [hours, mins] = timeStr.split(":").map(Number)
+    const totalMinutes = hours * 60 + mins + minutes
+    const newHours = Math.floor(totalMinutes / 60) % 24
+    const newMins = totalMinutes % 60
+    return `${newHours.toString().padStart(2, "0")}:${newMins.toString().padStart(2, "0")}`
+  }
+
+  // Handler for service selection
+  const handleServiceSelect = (serviceId: string) => {
+    setSelectedServiceId(serviceId)
+    const service = services.find((s) => s.id === serviceId)
+    
+    if (service) {
+      // Update treatment_type to maintain API contract
+      const updatedFormData = { ...formData, treatment_type: service.name }
+      
+      // Auto-calculate end_time if user hasn't manually edited it
+      if (formData.start_time) {
+        const newEndTime = addMinutesToTime(truncateTimeFormat(formData.start_time), service.duration)
+        updatedFormData.end_time = newEndTime
+      }
+      
+      setFormData(updatedFormData)
+      // Reset manual edit flag when a new service is selected
+      setUserEndTimeManuallyEdited(false)
+    }
+  }
+
+  // Handler for start_time changes
+  const handleStartTimeChange = (newStartTime: string) => {
+    const updatedFormData = { ...formData, start_time: newStartTime }
+    
+    // Auto-recalculate end_time if a service is selected and user hasn't manually edited end_time
+    if (selectedServiceId && !userEndTimeManuallyEdited) {
+      const service = services.find((s) => s.id === selectedServiceId)
+      if (service) {
+        updatedFormData.end_time = addMinutesToTime(truncateTimeFormat(newStartTime), service.duration)
+      }
+    }
+    
+    setFormData(updatedFormData)
+  }
+
+  // Handler for end_time changes (marks as manually edited)
+  const handleEndTimeChange = (newEndTime: string) => {
+    setFormData({ ...formData, end_time: newEndTime })
+    setUserEndTimeManuallyEdited(true)
+  }
+
   useEffect(() => {
     if (appointment) {
-      setFormData(appointment)
+      // Truncate time formats to HH:MM
+      const normalizedAppointment = {
+        ...appointment,
+        start_time: truncateTimeFormat(appointment.start_time),
+        end_time: truncateTimeFormat(appointment.end_time),
+      }
+      setFormData(normalizedAppointment)
       setIsNewPatient(false)
+      
+      // Initialize selected service by matching treatment_type to service name
+      const matchingService = services.find((s) => s.name === appointment.treatment_type)
+      if (matchingService) {
+        setSelectedServiceId(matchingService.id)
+      } else {
+        setSelectedServiceId(null)
+      }
+      
+      // Don't reset manual edit flag - preserve existing end_time
+      setUserEndTimeManuallyEdited(false)
     } else {
       setFormData({
         date: getCurrentDate(),
@@ -83,9 +178,11 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
       })
       setIsNewPatient(false)
       setNewPatientData({ name: "", phone: "", email: "" })
+      setSelectedServiceId(null)
+      setUserEndTimeManuallyEdited(false)
     }
     setError(null)
-  }, [appointment, staff])
+  }, [appointment, staff, services])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -189,7 +286,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
                 </SelectTrigger>
                 <SelectContent>
                   {patients.map((patient) => (
-                    <SelectItem key={patient.id} value={patient.id}>
+                    <SelectItem key={patient.id} value={patient.id || ""}>
                       {patient.name} ({patient.phone})
                     </SelectItem>
                   ))}
@@ -258,7 +355,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
                 id="start_time"
                 type="time"
                 value={formData.start_time}
-                onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                onChange={(e) => handleStartTimeChange(e.target.value)}
                 required
               />
             </div>
@@ -269,7 +366,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
                 id="end_time"
                 type="time"
                 value={formData.end_time}
-                onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                onChange={(e) => handleEndTimeChange(e.target.value)}
                 required
               />
             </div>
@@ -295,30 +392,41 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
           </div>
 
           <div>
-            <Label htmlFor="treatment_type">治療内容</Label>
+            <Label htmlFor="treatment_type">診療メニュー</Label>
             <Select
-              value={formData.treatment_type}
-              onValueChange={(value) => setFormData({ ...formData, treatment_type: value })}
+              value={selectedServiceId || undefined}
+              onValueChange={handleServiceSelect}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="診療メニューを選択" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="定期検診">定期検診</SelectItem>
-                <SelectItem value="虫歯治療">虫歯治療</SelectItem>
-                <SelectItem value="クリーニング">クリーニング</SelectItem>
-                <SelectItem value="矯正">矯正</SelectItem>
-                <SelectItem value="インプラント">インプラント</SelectItem>
-                <SelectItem value="抜歯">抜歯</SelectItem>
-                <SelectItem value="根管治療">根管治療</SelectItem>
-                <SelectItem value="ホワイトニング">ホワイトニング</SelectItem>
+                {services.length > 0 ? (
+                  services.filter((s) => s.is_active).map((service) => (
+                    <SelectItem key={service.id} value={service.id}>
+                      {service.name} ({service.duration}分)
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-services" disabled>
+                    サービスが見つかりません
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
 
           <div>
             <Label htmlFor="status">ステータス</Label>
-            <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+            <Select
+              value={formData.status}
+              onValueChange={(value) =>
+                setFormData({
+                  ...formData,
+                  status: value as "pending" | "confirmed" | "cancelled" | "completed" | "no_show",
+                })
+              }
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
