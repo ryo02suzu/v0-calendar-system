@@ -16,6 +16,24 @@ Your project is live at:
 
 **[https://vercel.com/sourirettes-projects/v0-code4](https://vercel.com/sourirettes-projects/v0-code4)**
 
+### Reproducible Builds
+
+This project uses pinned (exact) dependency versions to ensure reproducible builds across all environments. All dependencies in `package.json` are locked to specific versions without semver ranges (no `^`, `~`, or `latest` specifiers).
+
+**Dependency Management:**
+- Dependencies are managed with [pnpm](https://pnpm.io/)
+- All versions are pinned to exact releases for reproducibility
+- [Renovate](https://docs.renovatebot.com/) is configured to automatically create pull requests for dependency updates
+- Updates are scheduled to run weekly on Mondays with rate limits to avoid overwhelming the project
+- Radix UI packages are grouped together for easier review
+
+To install dependencies:
+```bash
+pnpm install
+```
+
+To update dependencies, merge the automated Renovate pull requests after review and testing.
+
 ## Build your app
 
 Continue building your app on:
