@@ -94,6 +94,7 @@ export function PatientList() {
       if (editingPatient) {
         await updatePatientViaApi(editingPatient.id!, formData)
       } else {
+        // createPatientViaApi は作成した patient を返すように修正済み
         await createPatientViaApi(formData)
       }
       await loadPatients()
@@ -166,7 +167,7 @@ export function PatientList() {
             {filteredPatients.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-8 text-gray-500">
-                  {searchTerm ? "該当する患者が見つかりません" : "患者データがありません"}
+                  {searchTerm ? "該当する患者が見つ���りません" : "患者データがありません"}
                 </TableCell>
               </TableRow>
             ) : (
@@ -327,6 +328,9 @@ async function createPatientViaApi(patient: PatientPayload) {
   if (!response.ok) {
     throw new Error(data.error || "患者の作成に失敗しました")
   }
+
+  // ✅ 成功時に作成された patient を返す
+  return data.data as Patient
 }
 
 async function updatePatientViaApi(id: string, patient: PatientPayload) {
@@ -340,4 +344,6 @@ async function updatePatientViaApi(id: string, patient: PatientPayload) {
   if (!response.ok) {
     throw new Error(data.error || "患者情報の更新に失敗しました")
   }
+
+  return data.data as Patient
 }

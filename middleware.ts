@@ -36,6 +36,14 @@ function unauthorizedResponse() {
 }
 
 export function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+
+  // === IMPORTANT: skip middleware for API routes and next static assets ===
+  // Client-side fetches to /api/* should not be blocked by Basic auth middleware.
+  if (pathname.startsWith("/api") || pathname.startsWith("/_next") || pathname === "/favicon.ico") {
+    return NextResponse.next()
+  }
+
   const requiredUser = process.env.DASHBOARD_BASIC_AUTH_USER
   const requiredPassword = process.env.DASHBOARD_BASIC_AUTH_PASSWORD
 
