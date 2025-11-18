@@ -17,6 +17,7 @@ import {
   updateService,
   deleteService,
   getBusinessHours,
+  updateBusinessHours,
   getHolidays,
   createHoliday,
   deleteHoliday,
@@ -60,6 +61,9 @@ export function Settings() {
   const [isServiceDialogOpen, setIsServiceDialogOpen] = useState(false)
   const [isSavingService, setIsSavingService] = useState(false)
 
+  // 診療時間保存用
+  const [isSavingHours, setIsSavingHours] = useState(false)
+
   // スタッフ編集用
   const [editingStaff, setEditingStaff] = useState<any>(null)
   const [isStaffDialogOpen, setIsStaffDialogOpen] = useState(false)
@@ -71,6 +75,38 @@ export function Settings() {
   useEffect(() => {
     loadData()
   }, [])
+
+  // 全ての曜日（0-6）のエントリを保証するヘルパー
+  function ensureAllDays(hoursFromDB: any[]): any[] {
+    const result: any[] = []
+    for (let day = 0; day <= 6; day++) {
+      const existing = hoursFromDB.find((h) => h.day_of_week === day)
+      if (existing) {
+        result.push(existing)
+      } else {
+        // デフォルト値: 日曜日(0)はis_closed=true、それ以外はfalse
+        result.push({
+          day_of_week: day,
+          open_time: "09:00",
+          close_time: "18:00",
+          is_closed: day === 0,
+        })
+      }
+    }
+    return result
+  }
+
+  // 診療時間の更新ヘルパー
+  function updateDay(index: number, patch: Partial<any>) {
+    setBusinessHours((prev) => {
+      const updated = [...prev]
+      const target = updated.find((h) => h.day_of_week === index)
+      if (target) {
+        Object.assign(target, patch)
+      }
+      return updated
+    })
+  }
 
   async function loadData() {
     setIsLoading(true)
@@ -95,7 +131,7 @@ export function Settings() {
       }
 
       setServices(servicesData)
-      setBusinessHours(hoursData)
+      setBusinessHours(ensureAllDays(hoursData))
       setHolidays(holidaysData)
       setClinicSettings(settingsData)
       setStaff(staffData)
@@ -195,6 +231,26 @@ export function Settings() {
       alert("設定を保存しました")
     } catch (error) {
       alert("保存に失敗しました")
+    }
+  }
+
+  async function handleSaveBusinessHours() {
+    if (isSavingHours) return
+    setIsSavingHours(true)
+    try {
+      // 診療時間データを構築（idは不要、updateBusinessHoursが削除+挿入を行う）
+      const payload = businessHours.map((h) => ({
+        day_of_week: h.day_of_week,
+        open_time: h.open_time,
+        close_time: h.close_time,
+        is_closed: h.is_closed,
+      }))
+      await updateBusinessHours(payload)
+      await loadData()
+    } catch (error) {
+      console.error("[v0] Error saving business hours:", error)
+    } finally {
+      setIsSavingHours(false)
     }
   }
 
@@ -559,6 +615,7 @@ export function Settings() {
                         className="w-32"
                         value={hours?.open_time || "09:00"}
                         disabled={hours?.is_closed}
+                        onChange={(e) => updateDay(index, { open_time: e.target.value })}
                       />
                       <span>〜</span>
                       <Input
@@ -566,16 +623,22 @@ export function Settings() {
                         className="w-32"
                         value={hours?.close_time || "18:00"}
                         disabled={hours?.is_closed}
+                        onChange={(e) => updateDay(index, { close_time: e.target.value })}
                       />
                       <div className="flex items-center gap-2">
-                        <Switch checked={!hours?.is_closed} />
+                        <Switch
+                          checked={!hours?.is_closed}
+                          onCheckedChange={(checked) => updateDay(index, { is_closed: !checked })}
+                        />
                         <Label>営業</Label>
                       </div>
                     </div>
                   )
                 })}
               </div>
-              <Button className="mt-4">保存</Button>
+              <Button className="mt-4" onClick={handleSaveBusinessHours}>
+                保存
+              </Button>
             </CardContent>
           </Card>
 
