@@ -43,6 +43,18 @@ export function PatientList() {
     loadPatients()
   }, [])
 
+  useEffect(() => {
+    const handleGlobalSearch = (event: Event) => {
+      const customEvent = event as CustomEvent<{ query: string }>
+      setSearchTerm(customEvent.detail.query)
+    }
+
+    window.addEventListener("app:global-search", handleGlobalSearch)
+    return () => {
+      window.removeEventListener("app:global-search", handleGlobalSearch)
+    }
+  }, [])
+
   const loadPatients = async () => {
     setIsLoading(true)
     try {

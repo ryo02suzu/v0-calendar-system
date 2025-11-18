@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 export function Header() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
   const notifRef = useRef<HTMLDivElement>(null)
   const userRef = useRef<HTMLDivElement>(null)
 
@@ -24,6 +25,16 @@ export function Header() {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value
+    setSearchQuery(query)
+    // Dispatch custom event for global search
+    const event = new CustomEvent("app:global-search", {
+      detail: { query },
+    })
+    window.dispatchEvent(event)
+  }
+
   const notifications = [
     { id: 1, title: "新規予約", message: "田中太郎さんから予約が入りました", time: "5分前", read: false },
     { id: 2, title: "予約変更", message: "山田花子さんが予約を変更しました", time: "1時間前", read: false },
@@ -36,7 +47,13 @@ export function Header() {
         <div className="flex items-center flex-1 max-w-2xl">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <Input type="search" placeholder="患者名、ID、電話番号で検索..." className="pl-10 w-full" />
+            <Input
+              type="search"
+              placeholder="患者名、ID、電話番号で検索..."
+              className="pl-10 w-full"
+              value={searchQuery}
+              onChange={handleSearchChange}
+            />
           </div>
         </div>
 
