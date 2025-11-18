@@ -5,10 +5,12 @@ import { updatePatient } from "@/lib/db"
 import { patientUpdateSchema } from "@/lib/validations/patient"
 
 type RouteContext = {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
-export async function PATCH(request: NextRequest, { params }: RouteContext) {
+export async function PATCH(request: NextRequest, context: RouteContext) {
+  const params = await context.params
+  
   try {
     const json = await request.json()
     const payload = patientUpdateSchema.parse(json)

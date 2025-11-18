@@ -188,8 +188,8 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
                   <SelectValue placeholder="患者を選択" />
                 </SelectTrigger>
                 <SelectContent>
-                  {patients.map((patient) => (
-                    <SelectItem key={patient.id} value={patient.id}>
+                  {patients.filter(p => p.id).map((patient) => (
+                    <SelectItem key={patient.id} value={patient.id!}>
                       {patient.name} ({patient.phone})
                     </SelectItem>
                   ))}
@@ -318,7 +318,12 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
 
           <div>
             <Label htmlFor="status">ステータス</Label>
-            <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+            <Select 
+              value={formData.status} 
+              onValueChange={(value: "pending" | "confirmed" | "cancelled" | "completed" | "no_show") => 
+                setFormData({ ...formData, status: value })
+              }
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

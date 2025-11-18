@@ -112,6 +112,8 @@ export function CalendarView() {
   }
 
   const handleDeleteAppointment = async (id: string) => {
+    console.log("[DEBUG] handleDeleteAppointment - id:", id)
+    
     try {
       const response = await fetch(`/api/reservations/${id}`, {
         method: "DELETE",
@@ -120,8 +122,12 @@ export function CalendarView() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
+        console.error("[DEBUG] DELETE failed - status:", response.status, "error:", errorData)
         throw new Error(errorData.error || "予約の削除に失敗しました")
       }
+
+      const result = await response.json()
+      console.log("[DEBUG] DELETE success - result:", result)
 
       toast({
         title: "削除完了",
@@ -199,6 +205,8 @@ async function mutateReservation(
   method: "POST" | "PATCH",
   payload: ReservationCreatePayload | ReservationUpdatePayload,
 ) {
+  console.log("[DEBUG] mutateReservation - method:", method, "url:", url, "payload:", payload)
+  
   const response = await fetch(url, {
     method,
     headers: { "Content-Type": "application/json" },
@@ -207,6 +215,11 @@ async function mutateReservation(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
+    console.error("[DEBUG] mutateReservation failed - status:", response.status, "error:", errorData)
     throw new Error(errorData.error || "予約の保存に失敗しました")
   }
+  
+  const result = await response.json()
+  console.log("[DEBUG] mutateReservation success - result:", result)
+  return result
 }

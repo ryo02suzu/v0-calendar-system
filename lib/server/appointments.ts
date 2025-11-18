@@ -48,6 +48,7 @@ export async function getAppointmentsByDate(date: string): Promise<Appointment[]
     .select(appointmentSelect)
     .eq("clinic_id", CLINIC_ID)
     .eq("date", date)
+    .neq("status", "cancelled")
     .order("start_time", { ascending: true })
     .order("staff_id", { ascending: true })
 

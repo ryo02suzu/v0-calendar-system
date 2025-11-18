@@ -37,13 +37,17 @@ const updateSchema = z
   })
 
 type RouteContext = {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
-export async function PATCH(request: NextRequest, { params }: RouteContext) {
+export async function PATCH(request: NextRequest, context: RouteContext) {
+  const params = await context.params
+  console.log("[DEBUG] PATCH /api/reservations/:id - id:", params.id)
+  
   let payload: z.infer<typeof updateSchema>
   try {
     const json = await request.json()
+    console.log("[DEBUG] PATCH request body:", json)
     payload = updateSchema.parse(json)
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -63,6 +67,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     const { patient: _patient, ...rest } = updates
 
     const data = await updateAppointmentRecord(params.id, rest)
+    console.log("[DEBUG] PATCH success - updated appointment:", data.id)
     return NextResponse.json({ data: serializeAppointmentForApi(data) })
   } catch (error) {
     if (error instanceof AppointmentConflictError) {
@@ -77,9 +82,13 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: RouteContext) {
+export async function DELETE(_: NextRequest, context: RouteContext) {
+  const params = await context.params
+  console.log("[DEBUG] DELETE /api/reservations/:id - id:", params.id)
+  
   try {
     const data = await cancelAppointmentRecord(params.id)
+    console.log("[DEBUG] DELETE success - cancelled appointment:", data.id)
     return NextResponse.json({ data: serializeAppointmentForApi(data) })
   } catch (error) {
     if (error instanceof AppointmentNotFoundError) {
