@@ -167,7 +167,7 @@ export function PatientList() {
             {filteredPatients.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-8 text-gray-500">
-                  {searchTerm ? "該当する患者が見つかりません" : "患者データがありません"}
+                  {searchTerm ? "該当する患者が見つ���りません" : "患者データがありません"}
                 </TableCell>
               </TableRow>
             ) : (
