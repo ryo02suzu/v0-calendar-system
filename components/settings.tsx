@@ -58,6 +58,7 @@ export function Settings() {
   // サービス編集用
   const [editingService, setEditingService] = useState<any>(null)
   const [isServiceDialogOpen, setIsServiceDialogOpen] = useState(false)
+  const [isSavingService, setIsSavingService] = useState(false)
 
   // スタッフ編集用
   const [editingStaff, setEditingStaff] = useState<any>(null)
@@ -115,6 +116,8 @@ export function Settings() {
   }
 
   async function handleSaveService() {
+    if (isSavingService) return
+    setIsSavingService(true)
     try {
       if (editingService?.id) {
         await updateService(editingService.id, editingService)
@@ -126,6 +129,8 @@ export function Settings() {
       setEditingService(null)
     } catch (error) {
       alert("保存に失敗しました")
+    } finally {
+      setIsSavingService(false)
     }
   }
 
@@ -372,7 +377,9 @@ export function Settings() {
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button onClick={handleSaveService}>保存</Button>
+                      <Button onClick={handleSaveService} disabled={isSavingService}>
+                        {isSavingService ? "保存中..." : "保存"}
+                      </Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
