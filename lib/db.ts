@@ -6,7 +6,6 @@ import type { Patient } from "./types"
 
 // 患者関連
 export async function getPatients(): Promise<Patient[]> {
-
   try {
     const { data, error } = await supabaseAdmin
       .from("patients")
@@ -15,8 +14,9 @@ export async function getPatients(): Promise<Patient[]> {
       .order("created_at", { ascending: false })
 
     if (error) throw error
-return (data || []).map(mapPatientFromDb)
 
+    // DB → APP 変換
+    return (data || []).map(mapPatientFromDb)
   } catch (error) {
     console.error("[v0] Error fetching patients:", error)
     return []
@@ -25,7 +25,9 @@ return (data || []).map(mapPatientFromDb)
 
 export async function createPatient(patient: Partial<Patient>) {
   try {
+    // APP → DB 変換
     const payload = mapPatientPayloadToDb(patient)
+
     const { data, error } = await supabaseAdmin
       .from("patients")
       .insert({
@@ -38,6 +40,8 @@ export async function createPatient(patient: Partial<Patient>) {
       .single()
 
     if (error) throw error
+
+    // DB → APP 変換して返す
     return mapPatientFromDb(data)
   } catch (error) {
     console.error("[v0] Error creating patient:", error)
@@ -47,7 +51,9 @@ export async function createPatient(patient: Partial<Patient>) {
 
 export async function updatePatient(id: string, patient: Partial<Patient>) {
   try {
+    // APP → DB 変換
     const payload = mapPatientPayloadToDb(patient)
+
     const { data, error } = await supabaseAdmin
       .from("patients")
       .update({
@@ -60,6 +66,8 @@ export async function updatePatient(id: string, patient: Partial<Patient>) {
       .single()
 
     if (error) throw error
+
+    // DB → APP
     return mapPatientFromDb(data)
   } catch (error) {
     console.error("[v0] Error updating patient:", error)
@@ -67,30 +75,45 @@ export async function updatePatient(id: string, patient: Partial<Patient>) {
   }
 }
 
+/*
+ * UI → DB のキー変換
+ */
 const PATIENT_APP_TO_DB_FIELD_MAP: Record<string, string> = {
   kana: "name_kana",
   date_of_birth: "birth_date",
   medical_notes: "notes",
 }
 
+/*
+ * DB → UI のキー変換
+ */
 const PATIENT_DB_TO_APP_FIELD_MAP: Record<string, string> = {
   name_kana: "kana",
   birth_date: "date_of_birth",
   notes: "medical_notes",
 }
 
+/*
+ * APP → DB 変換
+ */
 function mapPatientPayloadToDb(patient: Partial<Patient> = {}) {
   const payload: Record<string, any> = {}
 
   for (const [key, value] of Object.entries(patient)) {
     if (value === undefined) continue
+
     const dbKey = PATIENT_APP_TO_DB_FIELD_MAP[key] ?? key
+
+    // 空欄は null にして Supabase エラーを防ぐ
     payload[dbKey] = value === "" ? null : value
   }
 
   return payload
 }
 
+/*
+ * DB → APP 変換
+ */
 function mapPatientFromDb(record: Record<string, any>): Patient {
   const mapped: Record<string, any> = { ...record }
 
@@ -103,7 +126,6 @@ function mapPatientFromDb(record: Record<string, any>): Patient {
 
   return mapped as Patient
 }
-
 // スタッフ関連
 export async function getStaff() {
   try {
