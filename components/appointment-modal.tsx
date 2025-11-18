@@ -95,12 +95,12 @@ export function AppointmentModal({
     } else {
       // Creating new appointment
       const defaultBufferMinutes = 30 // clinicSettings?.booking_buffer_minutes || 30
-      const baseDefaults = {
+      const baseDefaults: Partial<CalendarAppointment> = {
         date: getCurrentDate(),
         start_time: "09:00",
         end_time: "10:00",
         treatment_type: "定期検診",
-        status: "confirmed",
+        status: "confirmed" as const,
         chair_number: 1,
         notes: "",
         staff_id: staff[0]?.id,
