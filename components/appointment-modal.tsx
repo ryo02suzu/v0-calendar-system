@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
@@ -180,21 +181,20 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
             </div>
 
             {!isNewPatient ? (
-              <Select
+              <Combobox
+                options={patients
+                  .filter((patient) => patient.id)
+                  .map((patient) => ({
+                    value: patient.id!,
+                    label: `${patient.name} (${patient.phone})`,
+                    searchText: `${patient.name} ${patient.phone}`,
+                  }))}
                 value={formData.patient_id}
                 onValueChange={(value) => setFormData({ ...formData, patient_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="患者を選択" />
-                </SelectTrigger>
-                <SelectContent>
-                  {patients.map((patient) => (
-                    <SelectItem key={patient.id} value={patient.id}>
-                      {patient.name} ({patient.phone})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="患者を選択"
+                emptyText="該当する患者が見つかりません"
+                searchPlaceholder="患者名または電話番号で検索..."
+              />
             ) : (
               <div className="space-y-2">
                 <Input
