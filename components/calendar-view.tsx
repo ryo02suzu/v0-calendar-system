@@ -18,6 +18,11 @@ export function CalendarView() {
   const [selectedAppointment, setSelectedAppointment] = useState<CalendarAppointment | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [newAppointmentDefaults, setNewAppointmentDefaults] = useState<{
+    date?: string
+    start_time?: string
+    staff_id?: string
+  }>({})
   const { toast } = useToast()
 
   const loadData = async (date: Date) => {
@@ -57,9 +62,24 @@ export function CalendarView() {
     loadData(currentDate)
   }, [currentDate])
 
-  const handleCreateAppointment = () => {
+  const openCreateAppointmentModal = (defaults: { date?: string; startTime?: string; staffId?: string }) => {
     setSelectedAppointment(null)
+    setNewAppointmentDefaults({
+      date: defaults.date,
+      start_time: defaults.startTime,
+      staff_id: defaults.staffId,
+    })
     setIsModalOpen(true)
+  }
+
+  const handleCreateAppointment = () => {
+    const dateString = currentDate.toISOString().split("T")[0]
+    const firstStaffId = staff[0]?.id
+    openCreateAppointmentModal({
+      date: dateString,
+      startTime: "09:00",
+      staffId: firstStaffId,
+    })
   }
 
   const handleEditAppointment = (appointment: CalendarAppointment) => {
@@ -167,6 +187,7 @@ export function CalendarView() {
             appointments={appointments}
             staff={staff}
             onAppointmentClick={handleEditAppointment}
+            onEmptySlotClick={openCreateAppointmentModal}
           />
         )}
         {viewMode === "day" && (
@@ -175,6 +196,7 @@ export function CalendarView() {
             appointments={appointments}
             staff={staff}
             onAppointmentClick={handleEditAppointment}
+            onEmptySlotClick={openCreateAppointmentModal}
           />
         )}
         {viewMode === "month" && (
@@ -189,6 +211,7 @@ export function CalendarView() {
         staff={staff}
         onSave={handleSaveAppointment}
         onDelete={handleDeleteAppointment}
+        initialData={newAppointmentDefaults}
       />
     </div>
   )

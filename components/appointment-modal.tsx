@@ -20,9 +20,31 @@ interface AppointmentModalProps {
   staff: Staff[]
   onSave: (appointment: CalendarAppointment) => Promise<void>
   onDelete: (id: string) => void
+  initialData?: {
+    date?: string
+    start_time?: string
+    staff_id?: string
+  }
 }
 
-export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, onDelete }: AppointmentModalProps) {
+// Utility function to add minutes to HH:MM formatted time
+function addMinutesToHHMM(timeStr: string, minutes: number): string {
+  const [hours, mins] = timeStr.split(":").map(Number)
+  const totalMinutes = hours * 60 + mins + minutes
+  const newHours = Math.floor(totalMinutes / 60) % 24
+  const newMins = totalMinutes % 60
+  return `${newHours.toString().padStart(2, "0")}:${newMins.toString().padStart(2, "0")}`
+}
+
+export function AppointmentModal({
+  isOpen,
+  onClose,
+  appointment,
+  staff,
+  onSave,
+  onDelete,
+  initialData,
+}: AppointmentModalProps) {
   const getCurrentDate = () => {
     const now = new Date()
     return now.toISOString().split("T")[0]
@@ -71,7 +93,9 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
       setFormData(appointment)
       setIsNewPatient(false)
     } else {
-      setFormData({
+      // Creating new appointment
+      const defaultBufferMinutes = 30 // clinicSettings?.booking_buffer_minutes || 30
+      const baseDefaults = {
         date: getCurrentDate(),
         start_time: "09:00",
         end_time: "10:00",
@@ -80,12 +104,32 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
         chair_number: 1,
         notes: "",
         staff_id: staff[0]?.id,
-      })
+      }
+
+      // Apply initialData if provided
+      if (initialData && Object.keys(initialData).length > 0) {
+        const newFormData: Partial<CalendarAppointment> = {
+          ...baseDefaults,
+          date: initialData.date || baseDefaults.date,
+          start_time: initialData.start_time || baseDefaults.start_time,
+          staff_id: initialData.staff_id || baseDefaults.staff_id,
+        }
+
+        // Calculate end_time based on start_time + buffer
+        if (initialData.start_time) {
+          newFormData.end_time = addMinutesToHHMM(initialData.start_time, defaultBufferMinutes)
+        }
+
+        setFormData(newFormData)
+      } else {
+        setFormData(baseDefaults)
+      }
+
       setIsNewPatient(false)
       setNewPatientData({ name: "", phone: "", email: "" })
     }
     setError(null)
-  }, [appointment, staff])
+  }, [appointment, staff, initialData])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -9,9 +9,10 @@ interface DayViewProps {
   appointments: CalendarAppointment[]
   staff: Staff[]
   onAppointmentClick: (appointment: CalendarAppointment) => void
+  onEmptySlotClick: (defaults: { date?: string; startTime?: string; staffId?: string }) => void
 }
 
-export function DayView({ currentDate, appointments, staff, onAppointmentClick }: DayViewProps) {
+export function DayView({ currentDate, appointments, staff, onAppointmentClick, onEmptySlotClick }: DayViewProps) {
   const hours = Array.from({ length: 11 }, (_, i) => i + 9) // 9:00 - 19:00
 
   const getAppointmentsForCell = (staffId: string, hour: number) => {
@@ -52,36 +53,58 @@ export function DayView({ currentDate, appointments, staff, onAppointmentClick }
         </div>
 
         {/* Time slots */}
-        {hours.map((hour) => (
-          <div
-            key={hour}
-            className="grid border-b border-gray-200"
-            style={{ gridTemplateColumns: "80px repeat(" + staff.length + ", 1fr)" }}
-          >
-            <div className="p-2 border-r border-gray-200 bg-gray-50 text-center text-sm">{hour}:00</div>
-            {staff.map((staffMember) => {
-              const cellAppointments = getAppointmentsForCell(staffMember.id, hour)
-              return (
-                <div key={staffMember.id} className="h-20 border-r border-gray-200 p-1 hover:bg-gray-50">
-                  {cellAppointments.map((apt) => (
-                    <div
-                      key={apt.id}
-                      onClick={() => onAppointmentClick(apt)}
-                      className={`p-2 rounded border cursor-pointer text-xs h-full ${getTreatmentColor(apt.treatment_type)}`}
-                    >
-                      <div className="font-medium">{apt.patient?.name}</div>
-                      <div>
-                        {apt.start_time} - {apt.end_time}
+        {hours.map((hour) => {
+          const dateString = currentDate.toISOString().split("T")[0]
+          const startTime = `${hour.toString().padStart(2, "0")}:00`
+
+          return (
+            <div
+              key={hour}
+              className="grid border-b border-gray-200"
+              style={{ gridTemplateColumns: "80px repeat(" + staff.length + ", 1fr)" }}
+            >
+              <div className="p-2 border-r border-gray-200 bg-gray-50 text-center text-sm">{hour}:00</div>
+              {staff.map((staffMember) => {
+                const cellAppointments = getAppointmentsForCell(staffMember.id, hour)
+                const hasAppointment = cellAppointments.length > 0
+
+                return (
+                  <div
+                    key={staffMember.id}
+                    className="h-20 border-r border-gray-200 p-1 hover:bg-gray-50 cursor-pointer"
+                    onClick={() => {
+                      if (!hasAppointment) {
+                        onEmptySlotClick({
+                          date: dateString,
+                          startTime: startTime,
+                          staffId: staffMember.id,
+                        })
+                      }
+                    }}
+                  >
+                    {cellAppointments.map((apt) => (
+                      <div
+                        key={apt.id}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onAppointmentClick(apt)
+                        }}
+                        className={`p-2 rounded border cursor-pointer text-xs h-full ${getTreatmentColor(apt.treatment_type)}`}
+                      >
+                        <div className="font-medium">{apt.patient?.name}</div>
+                        <div>
+                          {apt.start_time} - {apt.end_time}
+                        </div>
+                        <div>{apt.treatment_type}</div>
+                        {apt.chair_number && <div>チェア{apt.chair_number}</div>}
                       </div>
-                      <div>{apt.treatment_type}</div>
-                      {apt.chair_number && <div>チェア{apt.chair_number}</div>}
-                    </div>
-                  ))}
-                </div>
-              )
-            })}
-          </div>
-        ))}
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
