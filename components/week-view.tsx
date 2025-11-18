@@ -17,6 +17,8 @@ export function WeekView({ currentDate, appointments, staff, onAppointmentClick 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
   const hours = Array.from({ length: 11 }, (_, i) => i + 9) // 9:00 - 19:00
 
+  const formatHm = (t: string) => (t?.length >= 5 ? t.slice(0, 5) : t)
+
   const getAppointmentsForCell = (date: Date, staffId: string, hour: number) => {
     return appointments.filter((apt) => {
       const aptDate = parseISO(apt.date)
