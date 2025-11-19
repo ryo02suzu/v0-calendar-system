@@ -277,17 +277,17 @@ export function Header() {
             )}
           </div>
 
-          <Button variant="ghost" size="icon" onClick={() => router.push("/settings")}>
+          <Button variant="ghost" size="icon" onClick={() => router.push("/settings")} aria-label="設定">
             <Settings className="w-5 h-5" />
           </Button>
 
           <div className="relative" ref={userRef}>
-            <Button variant="ghost" size="icon" onClick={() => setShowUserMenu(!showUserMenu)} className="rounded-full">
+            <Button variant="ghost" size="icon" onClick={() => setShowUserMenu(!showUserMenu)} className="rounded-full" aria-label="ユーザーメニュー">
               <User className="w-5 h-5" />
             </Button>
 
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50" role="menu">
                 <div className="p-4 border-b border-gray-200">
                   <p className="font-semibold">今泉歯科クリニック</p>
                   <p className="text-sm text-gray-600">管理者</p>
@@ -300,6 +300,7 @@ export function Header() {
                       router.push("/profile")
                       setShowUserMenu(false)
                     }}
+                    role="menuitem"
                   >
                     プロフィール
                   </Button>
@@ -310,6 +311,7 @@ export function Header() {
                       handleLogout()
                       setShowUserMenu(false)
                     }}
+                    role="menuitem"
                   >
                     ログアウト
                   </Button>
