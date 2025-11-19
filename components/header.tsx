@@ -121,6 +121,10 @@ export function Header() {
     })
   }
 
+  const handleLogout = () => {
+    console.log("logout")
+  }
+
   const getRelativeTime = (timestamp: string): string => {
     const now = new Date()
     const past = new Date(timestamp)
@@ -205,7 +209,7 @@ export function Header() {
             )}
           </div>
 
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" onClick={() => router.push("/settings")}>
             <Settings className="w-5 h-5" />
           </Button>
 
@@ -221,13 +225,24 @@ export function Header() {
                   <p className="text-sm text-gray-600">管理者</p>
                 </div>
                 <div className="p-2">
-                  <Button variant="ghost" className="w-full justify-start text-sm">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-sm"
+                    onClick={() => {
+                      router.push("/profile")
+                      setShowUserMenu(false)
+                    }}
+                  >
                     プロフィール
                   </Button>
-                  <Button variant="ghost" className="w-full justify-start text-sm">
-                    アカウント設定
-                  </Button>
-                  <Button variant="ghost" className="w-full justify-start text-sm text-red-600">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-sm text-red-600"
+                    onClick={() => {
+                      handleLogout()
+                      setShowUserMenu(false)
+                    }}
+                  >
                     ログアウト
                   </Button>
                 </div>
