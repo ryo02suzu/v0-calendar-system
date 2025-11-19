@@ -39,6 +39,65 @@ export function PatientList() {
     medical_notes: "",
   })
 
+  // Highlight utility: wraps first match in <mark>
+  function highlightText(text: string, query: string): React.ReactNode {
+    if (!text || !query) return text
+    const lowerText = text.toLowerCase()
+    const lowerQuery = query.toLowerCase().trim()
+    if (!lowerQuery) return text
+    
+    const index = lowerText.indexOf(lowerQuery)
+    if (index === -1) return text
+    
+    return (
+      <>
+        {text.slice(0, index)}
+        <mark className="bg-yellow-200">{text.slice(index, index + lowerQuery.length)}</mark>
+        {text.slice(index + lowerQuery.length)}
+      </>
+    )
+  }
+
+  // Highlight phone digits: extract digits, find match, highlight in original
+  function highlightPhoneDigits(phoneText: string, query: string): React.ReactNode {
+    if (!phoneText || !query) return phoneText
+    
+    const queryDigits = query.replace(/\D/g, "")
+    if (!queryDigits) return phoneText
+    
+    const phoneDigits = phoneText.replace(/\D/g, "")
+    const matchIndex = phoneDigits.indexOf(queryDigits)
+    if (matchIndex === -1) return phoneText
+    
+    // Find the corresponding positions in the original string
+    let digitCount = 0
+    let startPos = -1
+    let endPos = -1
+    
+    for (let i = 0; i < phoneText.length; i++) {
+      if (/\d/.test(phoneText[i])) {
+        if (digitCount === matchIndex) {
+          startPos = i
+        }
+        digitCount++
+        if (digitCount === matchIndex + queryDigits.length) {
+          endPos = i + 1
+          break
+        }
+      }
+    }
+    
+    if (startPos === -1 || endPos === -1) return phoneText
+    
+    return (
+      <>
+        {phoneText.slice(0, startPos)}
+        <mark className="bg-yellow-200">{phoneText.slice(startPos, endPos)}</mark>
+        {phoneText.slice(endPos)}
+      </>
+    )
+  }
+
   useEffect(() => {
     loadPatients()
   }, [])
@@ -187,15 +246,21 @@ export function PatientList() {
             ) : (
               filteredPatients.map((patient) => (
                 <TableRow key={patient.id}>
-                  <TableCell className="font-medium">{patient.patient_number || "-"}</TableCell>
-                  <TableCell>{patient.name}</TableCell>
+                  <TableCell className="font-medium">
+                    {patient.patient_number 
+                      ? highlightText(patient.patient_number, searchTerm) 
+                      : "-"}
+                  </TableCell>
+                  <TableCell>{highlightText(patient.name, searchTerm)}</TableCell>
                   <TableCell className="text-gray-600">{patient.kana || "-"}</TableCell>
                   <TableCell>{patient.date_of_birth || "-"}</TableCell>
                   <TableCell>{patient.gender || "-"}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Phone className="w-4 h-4 text-gray-400" />
-                      {patient.phone || "-"}
+                      {patient.phone 
+                        ? highlightPhoneDigits(patient.phone, searchTerm) 
+                        : "-"}
                     </div>
                   </TableCell>
                   <TableCell>
