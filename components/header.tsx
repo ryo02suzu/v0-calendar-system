@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Bell, Settings, User, Search } from "lucide-react"
+import { Bell, Settings, User, Search, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -22,13 +22,36 @@ interface Notification {
 
 export function Header() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [isComposing, setIsComposing] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
   const userRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
+
+  // Handler functions
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value)
+  }
+
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery("")
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("app:global-search", { detail: { query: "" } }))
+    }
+    searchInputRef.current?.focus()
+  }, [])
+
+  const handleCompositionStart = () => {
+    setIsComposing(true)
+  }
+
+  const handleCompositionEnd = () => {
+    setIsComposing(false)
+  }
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -42,6 +65,33 @@ export function Header() {
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    function handleGlobalKeydown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement
+      const isTyping = 
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+
+      // "/" focuses search (unless already typing)
+      if (event.key === "/" && !isTyping && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+        event.preventDefault()
+        searchInputRef.current?.focus()
+        return
+      }
+
+      // "Esc" clears search when search input is focused
+      if (event.key === "Escape" && document.activeElement === searchInputRef.current) {
+        event.preventDefault()
+        handleClearSearch()
+      }
+    }
+
+    document.addEventListener("keydown", handleGlobalKeydown)
+    return () => document.removeEventListener("keydown", handleGlobalKeydown)
+  }, [handleClearSearch])
 
   const fetchNotifications = useCallback(async () => {
     setIsLoadingNotifications(true)
@@ -139,13 +189,18 @@ export function Header() {
     return `${diffDays}日前`
   }
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value
-    setSearchQuery(query)
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("app:global-search", { detail: { query } }))
-    }
-  }
+  // Debounced search dispatch
+  useEffect(() => {
+    if (isComposing) return
+
+    const timer = setTimeout(() => {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("app:global-search", { detail: { query: searchQuery } }))
+      }
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [searchQuery, isComposing])
 
   const unreadCount = notifications.filter((n) => !n.is_read).length
 
@@ -156,12 +211,25 @@ export function Header() {
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <Input
+              ref={searchInputRef}
               type="search"
               placeholder="患者名、ID、電話番号で検索..."
-              className="pl-10 w-full"
+              className="pl-10 pr-10 w-full"
               value={searchQuery}
               onChange={handleSearchChange}
+              onCompositionStart={handleCompositionStart}
+              onCompositionEnd={handleCompositionEnd}
             />
+            {searchQuery && (
+              <button
+                onClick={handleClearSearch}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                aria-label="検索をクリア"
+                type="button"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 
