@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Search, Plus, Phone, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -41,6 +41,15 @@ export function PatientList() {
 
   useEffect(() => {
     loadPatients()
+  }, [])
+
+  useEffect(() => {
+    const onGlobal = (event: Event) => {
+      const q = (event as CustomEvent<{ query: string }>).detail?.query ?? ""
+      setSearchTerm(q)
+    }
+    window.addEventListener("app:global-search", onGlobal)
+    return () => window.removeEventListener("app:global-search", onGlobal)
   }, [])
 
   const loadPatients = async () => {
@@ -105,14 +114,19 @@ export function PatientList() {
     }
   }
 
-  const filteredPatients = patients.filter(
-    (patient) =>
-      patient.name?.includes(searchTerm) ||
-      patient.kana?.includes(searchTerm) ||
-      patient.patient_number?.includes(searchTerm) ||
-      patient.phone?.includes(searchTerm) ||
-      patient.email?.includes(searchTerm),
-  )
+  const filteredPatients = useMemo(() => {
+    const q = (searchTerm || "").trim().toLowerCase()
+    if (!q) return patients
+    const norm = (s?: string) => (s || "").toLowerCase().replace(/\s+/g, "")
+    const digits = (s?: string) => (s || "").replace(/\D/g, "")
+    const qDigits = q.replace(/\D/g, "")
+    return patients.filter((p) => {
+      const name = norm(p.name)
+      const pid = norm(p.patient_number || p.id)
+      const phone = digits(p.phone)
+      return name.includes(q) || pid.includes(q) || (qDigits.length >= 1 && phone.includes(qDigits))
+    })
+  }, [patients, searchTerm])
 
   if (isLoading) {
     return (
