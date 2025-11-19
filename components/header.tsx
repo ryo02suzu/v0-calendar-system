@@ -32,6 +32,27 @@ export function Header() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
+  // Handler functions
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value)
+  }
+
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery("")
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("app:global-search", { detail: { query: "" } }))
+    }
+    searchInputRef.current?.focus()
+  }, [])
+
+  const handleCompositionStart = () => {
+    setIsComposing(true)
+  }
+
+  const handleCompositionEnd = () => {
+    setIsComposing(false)
+  }
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
@@ -70,7 +91,7 @@ export function Header() {
 
     document.addEventListener("keydown", handleGlobalKeydown)
     return () => document.removeEventListener("keydown", handleGlobalKeydown)
-  }, [searchQuery])
+  }, [handleClearSearch])
 
   const fetchNotifications = useCallback(async () => {
     setIsLoadingNotifications(true)
@@ -176,26 +197,6 @@ export function Header() {
 
     return () => clearTimeout(timer)
   }, [searchQuery, isComposing])
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value)
-  }
-
-  const handleClearSearch = () => {
-    setSearchQuery("")
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("app:global-search", { detail: { query: "" } }))
-    }
-    searchInputRef.current?.focus()
-  }
-
-  const handleCompositionStart = () => {
-    setIsComposing(true)
-  }
-
-  const handleCompositionEnd = () => {
-    setIsComposing(false)
-  }
 
   const unreadCount = notifications.filter((n) => !n.is_read).length
 
