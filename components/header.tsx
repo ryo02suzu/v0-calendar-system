@@ -21,6 +21,7 @@ interface Notification {
 }
 
 export function Header() {
+  const [searchQuery, setSearchQuery] = useState("")
   const [showNotifications, setShowNotifications] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -134,6 +135,14 @@ export function Header() {
     return `${diffDays}日前`
   }
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value
+    setSearchQuery(query)
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("app:global-search", { detail: { query } }))
+    }
+  }
+
   const unreadCount = notifications.filter((n) => !n.is_read).length
 
   return (
@@ -142,7 +151,13 @@ export function Header() {
         <div className="flex items-center flex-1 max-w-2xl">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <Input type="search" placeholder="患者名、ID、電話番号で検索..." className="pl-10 w-full" />
+            <Input
+              type="search"
+              placeholder="患者名、ID、電話番号で検索..."
+              className="pl-10 w-full"
+              value={searchQuery}
+              onChange={handleSearchChange}
+            />
           </div>
         </div>
 
