@@ -18,6 +18,9 @@ export function CalendarView() {
   const [selectedAppointment, setSelectedAppointment] = useState<CalendarAppointment | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [initialDate, setInitialDate] = useState<Date | undefined>()
+  const [initialTime, setInitialTime] = useState<string | undefined>()
+  const [initialStaffId, setInitialStaffId] = useState<string | undefined>()
   const { toast } = useToast()
 
   const loadData = async (date: Date) => {
@@ -59,11 +62,23 @@ export function CalendarView() {
 
   const handleCreateAppointment = () => {
     setSelectedAppointment(null)
+    setInitialDate(undefined)
+    setInitialTime(undefined)
+    setInitialStaffId(undefined)
     setIsModalOpen(true)
   }
 
   const handleEditAppointment = (appointment: CalendarAppointment) => {
     setSelectedAppointment(appointment)
+    setIsModalOpen(true)
+  }
+
+  const handleEmptyCellClick = ({ date, hour, staffId }: { date: Date; hour: number; staffId: string }) => {
+    const pad = (n: number) => String(n).padStart(2, "0")
+    setSelectedAppointment(null)
+    setInitialDate(date)
+    setInitialTime(`${pad(hour)}:00`)
+    setInitialStaffId(staffId)
     setIsModalOpen(true)
   }
 
@@ -167,6 +182,7 @@ export function CalendarView() {
             appointments={appointments}
             staff={staff}
             onAppointmentClick={handleEditAppointment}
+            onEmptyCellClick={handleEmptyCellClick}
           />
         )}
         {viewMode === "day" && (
@@ -175,6 +191,7 @@ export function CalendarView() {
             appointments={appointments}
             staff={staff}
             onAppointmentClick={handleEditAppointment}
+            onEmptyCellClick={handleEmptyCellClick}
           />
         )}
         {viewMode === "month" && (
@@ -184,11 +201,19 @@ export function CalendarView() {
 
       <AppointmentModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false)
+          setInitialDate(undefined)
+          setInitialTime(undefined)
+          setInitialStaffId(undefined)
+        }}
         appointment={selectedAppointment}
         staff={staff}
         onSave={handleSaveAppointment}
         onDelete={handleDeleteAppointment}
+        initialDate={initialDate}
+        initialTime={initialTime}
+        initialStaffId={initialStaffId}
       />
     </div>
   )

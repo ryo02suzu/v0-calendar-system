@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
+import { format, addHours, parse } from "date-fns"
 import type { Patient, Staff } from "@/lib/types"
 import type { CalendarAppointment } from "@/types/api"
 
@@ -20,9 +21,22 @@ interface AppointmentModalProps {
   staff: Staff[]
   onSave: (appointment: CalendarAppointment) => Promise<void>
   onDelete: (id: string) => void
+  initialDate?: Date
+  initialTime?: string
+  initialStaffId?: string
 }
 
-export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, onDelete }: AppointmentModalProps) {
+export function AppointmentModal({ 
+  isOpen, 
+  onClose, 
+  appointment, 
+  staff, 
+  onSave, 
+  onDelete, 
+  initialDate, 
+  initialTime, 
+  initialStaffId 
+}: AppointmentModalProps) {
   const getCurrentDate = () => {
     const now = new Date()
     return now.toISOString().split("T")[0]
@@ -71,21 +85,35 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
       setFormData(appointment)
       setIsNewPatient(false)
     } else {
+      // Create mode: use initial values if provided, otherwise use defaults
+      const dateStr = initialDate ? format(initialDate, "yyyy-MM-dd") : getCurrentDate()
+      const startTime = initialTime ?? "09:00"
+      
+      // Calculate end time as start time + 1 hour
+      let endTime = "10:00"
+      try {
+        const startDate = parse(startTime, "HH:mm", new Date())
+        const endDate = addHours(startDate, 1)
+        endTime = format(endDate, "HH:mm")
+      } catch (e) {
+        console.error("Error parsing time:", e)
+      }
+
       setFormData({
-        date: getCurrentDate(),
-        start_time: "09:00",
-        end_time: "10:00",
+        date: dateStr,
+        start_time: startTime,
+        end_time: endTime,
         treatment_type: "定期検診",
         status: "confirmed",
         chair_number: 1,
         notes: "",
-        staff_id: staff[0]?.id,
+        staff_id: initialStaffId ?? staff[0]?.id,
       })
       setIsNewPatient(false)
       setNewPatientData({ name: "", phone: "", email: "" })
     }
     setError(null)
-  }, [appointment, staff])
+  }, [appointment, staff, initialDate, initialTime, initialStaffId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
