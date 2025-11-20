@@ -344,6 +344,16 @@ export function AppointmentModal({
                       value={searchValue}
                       onValueChange={setSearchValue}
                       disabled={isSaving}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          // Prevent auto-selection if no item is keyboard-highlighted
+                          const selectedItem = document.querySelector('[cmdk-item][data-selected="true"]')
+                          if (!selectedItem) {
+                            e.preventDefault()
+                            e.stopPropagation()
+                          }
+                        }
+                      }}
                     />
                     <CommandList>
                       <CommandEmpty>該当する患者が見つかりません</CommandEmpty>
@@ -359,6 +369,7 @@ export function AppointmentModal({
                                 setOpen(false)
                                 setSearchValue("")
                               }}
+                              className="cursor-pointer"
                             >
                               <Check
                                 className={cn(
@@ -392,6 +403,7 @@ export function AppointmentModal({
                                 setOpen(false)
                                 setSearchValue("")
                               }}
+                              className="cursor-pointer"
                             >
                               <Check
                                 className={cn(
