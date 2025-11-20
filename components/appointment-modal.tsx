@@ -508,7 +508,12 @@ export function AppointmentModal({
             <Label htmlFor="status">ステータス</Label>
             <Select
               value={formData.status}
-              onValueChange={(value) => setFormData({ ...formData, status: value })}
+              onValueChange={(value) =>
+                setFormData({
+                  ...formData,
+                  status: value as "pending" | "confirmed" | "cancelled" | "completed" | "no_show",
+                })
+              }
               disabled={isSaving}
             >
               <SelectTrigger>
