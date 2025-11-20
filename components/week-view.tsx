@@ -10,9 +10,10 @@ interface WeekViewProps {
   appointments: CalendarAppointment[]
   staff: Staff[]
   onAppointmentClick: (appointment: CalendarAppointment) => void
+  onEmptyCellClick?: (args: { date: Date; hour: number; staffId: string }) => void
 }
 
-export function WeekView({ currentDate, appointments, staff, onAppointmentClick }: WeekViewProps) {
+export function WeekView({ currentDate, appointments, staff, onAppointmentClick, onEmptyCellClick }: WeekViewProps) {
   const weekStart = startOfWeek(currentDate, { locale: ja })
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
   const hours = Array.from({ length: 11 }, (_, i) => i + 9) // 9:00 - 19:00
@@ -65,11 +66,18 @@ export function WeekView({ currentDate, appointments, staff, onAppointmentClick 
                   {hours.map((hour) => {
                     const cellAppointments = getAppointmentsForCell(day, staffMember.id, hour)
                     return (
-                      <div key={hour} className="h-16 border-b border-gray-100 p-1 hover:bg-gray-50">
+                      <div
+                        key={hour}
+                        className="h-16 border-b border-gray-100 p-1 hover:bg-gray-50 cursor-pointer"
+                        onClick={() => onEmptyCellClick?.({ date: day, hour, staffId: staffMember.id })}
+                      >
                         {cellAppointments.map((apt) => (
                           <div
                             key={apt.id}
-                            onClick={() => onAppointmentClick(apt)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onAppointmentClick(apt)
+                            }}
                             className={`p-2 rounded border cursor-pointer text-xs ${getTreatmentColor(apt.treatment_type)}`}
                           >
                             <div className="font-medium truncate">{apt.patient?.name}</div>

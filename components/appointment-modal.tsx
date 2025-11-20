@@ -20,12 +20,31 @@ interface AppointmentModalProps {
   staff: Staff[]
   onSave: (appointment: CalendarAppointment) => Promise<void>
   onDelete: (id: string) => void
+  initialDate?: Date
+  initialTime?: string
+  initialStaffId?: string
 }
 
-export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, onDelete }: AppointmentModalProps) {
+export function AppointmentModal({
+  isOpen,
+  onClose,
+  appointment,
+  staff,
+  onSave,
+  onDelete,
+  initialDate,
+  initialTime,
+  initialStaffId,
+}: AppointmentModalProps) {
   const getCurrentDate = () => {
     const now = new Date()
     return now.toISOString().split("T")[0]
+  }
+
+  const addOneHour = (timeStr: string) => {
+    const [hours, minutes] = timeStr.split(":").map(Number)
+    const newHours = (hours + 1) % 24
+    return `${String(newHours).padStart(2, "0")}:${String(minutes || 0).padStart(2, "0")}`
   }
 
   const [formData, setFormData] = useState<Partial<CalendarAppointment>>({
@@ -71,21 +90,26 @@ export function AppointmentModal({ isOpen, onClose, appointment, staff, onSave, 
       setFormData(appointment)
       setIsNewPatient(false)
     } else {
+      const date = initialDate ? initialDate.toISOString().split("T")[0] : getCurrentDate()
+      const startTime = initialTime || "09:00"
+      const endTime = addOneHour(startTime)
+      const staffId = initialStaffId || staff[0]?.id
+
       setFormData({
-        date: getCurrentDate(),
-        start_time: "09:00",
-        end_time: "10:00",
+        date,
+        start_time: startTime,
+        end_time: endTime,
         treatment_type: "定期検診",
         status: "confirmed",
         chair_number: 1,
         notes: "",
-        staff_id: staff[0]?.id,
+        staff_id: staffId,
       })
       setIsNewPatient(false)
       setNewPatientData({ name: "", phone: "", email: "" })
     }
     setError(null)
-  }, [appointment, staff])
+  }, [appointment, staff, initialDate, initialTime, initialStaffId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
