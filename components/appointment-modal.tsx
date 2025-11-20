@@ -16,6 +16,23 @@ import { cn } from "@/lib/utils"
 import type { Patient, Staff } from "@/lib/types"
 import type { CalendarAppointment } from "@/types/api"
 
+/**
+ * Convert hiragana to katakana for search matching
+ */
+function hiraganaToKatakana(str: string): string {
+  return str.replace(/[\u3041-\u3096]/g, (match) => {
+    const chr = match.charCodeAt(0) + 0x60
+    return String.fromCharCode(chr)
+  })
+}
+
+/**
+ * Normalize search string: remove spaces, hyphens, convert to lowercase, hiragana -> katakana
+ */
+function normalizeSearchString(str: string): string {
+  return hiraganaToKatakana(str.replace(/[\s\-]/g, "").toLowerCase())
+}
+
 interface AppointmentModalProps {
   isOpen: boolean
   onClose: () => void
@@ -35,27 +52,51 @@ export function AppointmentModal({
   onDelete,
   initialSlotData,
 }: AppointmentModalProps) {
-  const CLOSING_HOUR = 19 // Clinic closes at 19:00
-
   const getCurrentDate = () => {
     const now = new Date()
     return now.toISOString().split("T")[0]
   }
 
-  // Calculate end_time = start_time + 1h, but clamp to closing hour (19:00)
-  // If start >= 18:00, ensure end does not exceed 19:00
-  // If start >= 19:00, set end = start (edge case)
-  const calculateEndTime = (timeStr: string) => {
+  /**
+   * Compute closing hour based on date's day of week
+   * Weekday (Mon-Fri): 18:00
+   * Saturday: 13:00
+   * Sunday: fallback to 19:00 (edge case, clinic usually closed)
+   */
+  const getClosingHour = (dateStr: string): number => {
+    const date = new Date(dateStr)
+    const dayOfWeek = date.getDay() // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      // Monday to Friday
+      return 18
+    } else if (dayOfWeek === 6) {
+      // Saturday
+      return 13
+    } else {
+      // Sunday - fallback
+      return 19
+    }
+  }
+
+  /**
+   * Calculate end_time = start_time + 1h, but clamp to closing hour
+   * Closing hour determined by date's day of week
+   */
+  const calculateEndTime = (timeStr: string, dateStr: string) => {
+    const closingHour = getClosingHour(dateStr)
     const [hours, minutes] = timeStr.split(":").map(Number)
-    if (hours >= CLOSING_HOUR) {
-      // If starting at or after closing, end time = start time (edge case)
-      return timeStr
+    
+    if (hours >= closingHour) {
+      // If starting at or after closing, end time = closing hour
+      return `${String(closingHour).padStart(2, "0")}:00`
     }
+    
     const endHours = hours + 1
-    if (endHours > CLOSING_HOUR) {
+    if (endHours > closingHour) {
       // Clamp to closing hour
-      return `${String(CLOSING_HOUR).padStart(2, "0")}:00`
+      return `${String(closingHour).padStart(2, "0")}:00`
     }
+    
     return `${String(endHours).padStart(2, "0")}:${String(minutes || 0).padStart(2, "0")}`
   }
 
@@ -76,6 +117,7 @@ export function AppointmentModal({
   const [searchQuery, setSearchQuery] = useState("")
   const [isPatientPopoverOpen, setIsPatientPopoverOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const newPatientNameRef = useRef<HTMLInputElement>(null)
 
   // Memoized patient lists for performance
   const recentPatients = useMemo(() => {
@@ -89,27 +131,42 @@ export function AppointmentModal({
 
   const filteredPatients = useMemo(() => {
     if (!searchQuery) return patients
-    const query = searchQuery.toLowerCase()
-    return patients.filter(
-      (patient) =>
-        patient.name?.toLowerCase().includes(query) ||
-        patient.kana?.toLowerCase().includes(query) ||
-        patient.phone?.includes(query)
-    )
+    
+    // Normalize search query: hiragana -> katakana, remove spaces/hyphens, lowercase
+    const normalizedQuery = normalizeSearchString(searchQuery)
+    
+    return patients.filter((patient) => {
+      // Normalize patient fields for comparison
+      const normalizedName = normalizeSearchString(patient.name || "")
+      const normalizedKana = normalizeSearchString(patient.kana || "")
+      const normalizedPhone = (patient.phone || "").replace(/[\s\-]/g, "")
+      const normalizedPatientNumber = (patient.patient_number || "").replace(/[\s\-]/g, "")
+      
+      return (
+        normalizedName.includes(normalizedQuery) ||
+        normalizedKana.includes(normalizedQuery) ||
+        normalizedPhone.includes(normalizedQuery) ||
+        normalizedPatientNumber.includes(normalizedQuery)
+      )
+    })
   }, [patients, searchQuery])
 
   useEffect(() => {
     if (isOpen) {
       loadPatients()
       setError(null)
-      // Auto-focus search input when modal opens after a short delay
+      // Auto-focus appropriate input based on mode
       setTimeout(() => {
-        if (!appointment && searchInputRef.current) {
-          searchInputRef.current.focus()
+        if (!appointment) {
+          if (isNewPatient && newPatientNameRef.current) {
+            newPatientNameRef.current.focus()
+          } else if (!isNewPatient && searchInputRef.current) {
+            searchInputRef.current.focus()
+          }
         }
       }, 100)
     }
-  }, [isOpen, appointment])
+  }, [isOpen, appointment, isNewPatient])
 
   const loadPatients = async () => {
     try {
@@ -136,11 +193,12 @@ export function AppointmentModal({
     } else if (initialSlotData) {
       // Creating appointment from empty cell click - prefill date, time, and staff
       const startTime = initialSlotData.time || "09:00"
-      const endTime = calculateEndTime(startTime)
+      const dateStr = initialSlotData.date
+      const endTime = calculateEndTime(startTime, dateStr)
       const staffId = initialSlotData.staffId || staff[0]?.id
 
       setFormData({
-        date: initialSlotData.date,
+        date: dateStr,
         start_time: startTime,
         end_time: endTime,
         treatment_type: "定期検診",
@@ -153,10 +211,11 @@ export function AppointmentModal({
       setNewPatientData({ name: "", phone: "", email: "" })
     } else {
       // Creating appointment from toolbar - use current defaults
+      const currentDateStr = getCurrentDate()
       setFormData({
-        date: getCurrentDate(),
+        date: currentDateStr,
         start_time: "09:00",
-        end_time: "10:00",
+        end_time: calculateEndTime("09:00", currentDateStr),
         treatment_type: "定期検診",
         status: "confirmed",
         chair_number: 1,
@@ -189,10 +248,11 @@ export function AppointmentModal({
         return
       }
 
-      // Validate end_time does not exceed closing hour
+      // Validate end_time does not exceed closing hour for the selected date
+      const closingHour = getClosingHour(formData.date)
       const endHour = Number.parseInt(formData.end_time.split(":")[0])
-      if (endHour > CLOSING_HOUR) {
-        setError(`終了時刻は閉院時刻（${CLOSING_HOUR}:00）を超えることはできません`)
+      if (endHour > closingHour) {
+        setError(`終了時刻は閉院時刻（${closingHour}:00）を超えることはできません`)
         setIsSaving(false)
         return
       }
@@ -291,7 +351,15 @@ export function AppointmentModal({
                     className={cn("w-full justify-between", !selectedPatient && "text-muted-foreground")}
                     disabled={isSaving}
                   >
-                    {selectedPatient ? `${selectedPatient.name} (${selectedPatient.phone})` : "患者を選択"}
+                    {selectedPatient ? (
+                      <span className="truncate">
+                        {selectedPatient.name}
+                        {selectedPatient.patient_number && ` [${selectedPatient.patient_number}]`}
+                        {` (${selectedPatient.phone})`}
+                      </span>
+                    ) : (
+                      "患者を選択"
+                    )}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -322,9 +390,15 @@ export function AppointmentModal({
                                   selectedPatient?.id === patient.id ? "opacity-100" : "opacity-0"
                                 )}
                               />
-                              <div className="flex flex-col">
-                                <span>{patient.name}</span>
-                                <span className="text-xs text-muted-foreground">{patient.phone}</span>
+                              <div className="flex flex-col min-w-0">
+                                <span className="truncate">
+                                  {patient.name}
+                                  {patient.patient_number && ` [${patient.patient_number}]`}
+                                </span>
+                                <span className="text-xs text-muted-foreground truncate">
+                                  {patient.kana && `${patient.kana} | `}
+                                  {patient.phone}
+                                </span>
                               </div>
                             </CommandItem>
                           ))}
@@ -347,9 +421,12 @@ export function AppointmentModal({
                                   selectedPatient?.id === patient.id ? "opacity-100" : "opacity-0"
                                 )}
                               />
-                              <div className="flex flex-col">
-                                <span>{patient.name}</span>
-                                <span className="text-xs text-muted-foreground">
+                              <div className="flex flex-col min-w-0">
+                                <span className="truncate">
+                                  {patient.name}
+                                  {patient.patient_number && ` [${patient.patient_number}]`}
+                                </span>
+                                <span className="text-xs text-muted-foreground truncate">
                                   {patient.kana && `${patient.kana} | `}
                                   {patient.phone}
                                 </span>
@@ -367,6 +444,7 @@ export function AppointmentModal({
                 <div>
                   <Label htmlFor="new-patient-name">患者名 *</Label>
                   <Input
+                    ref={newPatientNameRef}
                     id="new-patient-name"
                     placeholder="患者名"
                     value={newPatientData.name}
