@@ -18,6 +18,12 @@ export function WeekView({ currentDate, appointments, staff, onAppointmentClick,
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
   const hours = Array.from({ length: 11 }, (_, i) => i + 9) // 9:00 - 19:00
 
+  const formatHm = (t: string) => {
+    if (!t) return ""
+    const [h, m] = t.split(":")
+    return `${h.padStart(2, "0")}:${(m || "00").padStart(2, "0")}`
+  }
+
   const getAppointmentsForCell = (date: Date, staffId: string, hour: number) => {
     return appointments.filter((apt) => {
       const aptDate = parseISO(apt.date)
@@ -81,6 +87,9 @@ export function WeekView({ currentDate, appointments, staff, onAppointmentClick,
                             className={`p-2 rounded border cursor-pointer text-xs ${getTreatmentColor(apt.treatment_type)}`}
                           >
                             <div className="font-medium truncate">{apt.patient?.name}</div>
+                            <div className="truncate font-mono text-xs">
+                              {formatHm(apt.start_time)} - {formatHm(apt.end_time)}
+                            </div>
                             <div className="truncate">{apt.treatment_type}</div>
                             {apt.chair_number && <div className="text-xs">チェア{apt.chair_number}</div>}
                           </div>
