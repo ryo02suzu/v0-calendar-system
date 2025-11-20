@@ -9,9 +9,10 @@ interface DayViewProps {
   appointments: CalendarAppointment[]
   staff: Staff[]
   onAppointmentClick: (appointment: CalendarAppointment) => void
+  onEmptyCellClick?: (args: { date: Date; hour: number; staffId: string }) => void
 }
 
-export function DayView({ currentDate, appointments, staff, onAppointmentClick }: DayViewProps) {
+export function DayView({ currentDate, appointments, staff, onAppointmentClick, onEmptyCellClick }: DayViewProps) {
   const hours = Array.from({ length: 11 }, (_, i) => i + 9) // 9:00 - 19:00
 
   const getAppointmentsForCell = (staffId: string, hour: number) => {
@@ -62,11 +63,18 @@ export function DayView({ currentDate, appointments, staff, onAppointmentClick }
             {staff.map((staffMember) => {
               const cellAppointments = getAppointmentsForCell(staffMember.id, hour)
               return (
-                <div key={staffMember.id} className="h-20 border-r border-gray-200 p-1 hover:bg-gray-50">
+                <div
+                  key={staffMember.id}
+                  className="h-20 border-r border-gray-200 p-1 hover:bg-gray-50 cursor-pointer"
+                  onClick={() => onEmptyCellClick?.({ date: currentDate, hour, staffId: staffMember.id })}
+                >
                   {cellAppointments.map((apt) => (
                     <div
                       key={apt.id}
-                      onClick={() => onAppointmentClick(apt)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onAppointmentClick(apt)
+                      }}
                       className={`p-2 rounded border cursor-pointer text-xs h-full ${getTreatmentColor(apt.treatment_type)}`}
                     >
                       <div className="font-medium">{apt.patient?.name}</div>

@@ -18,6 +18,9 @@ export function CalendarView() {
   const [selectedAppointment, setSelectedAppointment] = useState<CalendarAppointment | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [initialDate, setInitialDate] = useState<Date | undefined>(undefined)
+  const [initialTime, setInitialTime] = useState<string | undefined>(undefined)
+  const [initialStaffId, setInitialStaffId] = useState<string | undefined>(undefined)
   const { toast } = useToast()
 
   const loadData = async (date: Date) => {
@@ -59,11 +62,26 @@ export function CalendarView() {
 
   const handleCreateAppointment = () => {
     setSelectedAppointment(null)
+    setInitialDate(undefined)
+    setInitialTime(undefined)
+    setInitialStaffId(undefined)
     setIsModalOpen(true)
   }
 
   const handleEditAppointment = (appointment: CalendarAppointment) => {
     setSelectedAppointment(appointment)
+    setInitialDate(undefined)
+    setInitialTime(undefined)
+    setInitialStaffId(undefined)
+    setIsModalOpen(true)
+  }
+
+  const handleEmptyCellClick = ({ date, hour, staffId }: { date: Date; hour: number; staffId: string }) => {
+    const timeString = `${String(hour).padStart(2, "0")}:00`
+    setInitialDate(date)
+    setInitialTime(timeString)
+    setInitialStaffId(staffId)
+    setSelectedAppointment(null)
     setIsModalOpen(true)
   }
 
@@ -167,6 +185,7 @@ export function CalendarView() {
             appointments={appointments}
             staff={staff}
             onAppointmentClick={handleEditAppointment}
+            onEmptyCellClick={handleEmptyCellClick}
           />
         )}
         {viewMode === "day" && (
@@ -175,6 +194,7 @@ export function CalendarView() {
             appointments={appointments}
             staff={staff}
             onAppointmentClick={handleEditAppointment}
+            onEmptyCellClick={handleEmptyCellClick}
           />
         )}
         {viewMode === "month" && (
@@ -189,6 +209,9 @@ export function CalendarView() {
         staff={staff}
         onSave={handleSaveAppointment}
         onDelete={handleDeleteAppointment}
+        initialDate={initialDate}
+        initialTime={initialTime}
+        initialStaffId={initialStaffId}
       />
     </div>
   )
