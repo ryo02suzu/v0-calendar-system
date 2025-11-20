@@ -18,9 +18,7 @@ export function CalendarView() {
   const [selectedAppointment, setSelectedAppointment] = useState<CalendarAppointment | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [initialDate, setInitialDate] = useState<Date | undefined>(undefined)
-  const [initialTime, setInitialTime] = useState<string | undefined>(undefined)
-  const [initialStaffId, setInitialStaffId] = useState<string | undefined>(undefined)
+  const [initialSlotData, setInitialSlotData] = useState<{ date: string; time: string; staffId?: string } | null>(null)
   const { toast } = useToast()
 
   const loadData = async (date: Date) => {
@@ -61,27 +59,25 @@ export function CalendarView() {
   }, [currentDate])
 
   const handleCreateAppointment = () => {
+    // Toolbar "新規予約" - clear initial slot data to ensure clean default modal
     setSelectedAppointment(null)
-    setInitialDate(undefined)
-    setInitialTime(undefined)
-    setInitialStaffId(undefined)
+    setInitialSlotData(null)
     setIsModalOpen(true)
   }
 
   const handleEditAppointment = (appointment: CalendarAppointment) => {
+    // Edit existing appointment - no slot prefill
     setSelectedAppointment(appointment)
-    setInitialDate(undefined)
-    setInitialTime(undefined)
-    setInitialStaffId(undefined)
+    setInitialSlotData(null)
     setIsModalOpen(true)
   }
 
   const handleEmptyCellClick = ({ date, hour, staffId }: { date: Date; hour: number; staffId: string }) => {
+    // Empty cell click - prefill date, time, and staff
+    const dateString = date.toISOString().split("T")[0] // Convert Date to string
     const timeString = `${String(hour).padStart(2, "0")}:00`
-    setInitialDate(date)
-    setInitialTime(timeString)
-    setInitialStaffId(staffId)
     setSelectedAppointment(null)
+    setInitialSlotData({ date: dateString, time: timeString, staffId })
     setIsModalOpen(true)
   }
 
@@ -204,14 +200,16 @@ export function CalendarView() {
 
       <AppointmentModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false)
+          // Reset initial slot data on modal close
+          setInitialSlotData(null)
+        }}
         appointment={selectedAppointment}
         staff={staff}
         onSave={handleSaveAppointment}
         onDelete={handleDeleteAppointment}
-        initialDate={initialDate}
-        initialTime={initialTime}
-        initialStaffId={initialStaffId}
+        initialSlotData={initialSlotData}
       />
     </div>
   )

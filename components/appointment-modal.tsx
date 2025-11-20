@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,7 +9,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { AlertCircle, Check, ChevronsUpDown, UserPlus } from "lucide-react"
+import { cn } from "@/lib/utils"
 import type { Patient, Staff } from "@/lib/types"
 import type { CalendarAppointment } from "@/types/api"
 
@@ -20,9 +23,7 @@ interface AppointmentModalProps {
   staff: Staff[]
   onSave: (appointment: CalendarAppointment) => Promise<void>
   onDelete: (id: string) => void
-  initialDate?: Date
-  initialTime?: string
-  initialStaffId?: string
+  initialSlotData?: { date: string; time: string; staffId?: string } | null
 }
 
 export function AppointmentModal({
@@ -32,19 +33,30 @@ export function AppointmentModal({
   staff,
   onSave,
   onDelete,
-  initialDate,
-  initialTime,
-  initialStaffId,
+  initialSlotData,
 }: AppointmentModalProps) {
+  const CLOSING_HOUR = 19 // Clinic closes at 19:00
+
   const getCurrentDate = () => {
     const now = new Date()
     return now.toISOString().split("T")[0]
   }
 
-  const addOneHour = (timeStr: string) => {
+  // Calculate end_time = start_time + 1h, but clamp to closing hour (19:00)
+  // If start >= 18:00, ensure end does not exceed 19:00
+  // If start >= 19:00, set end = start (edge case)
+  const calculateEndTime = (timeStr: string) => {
     const [hours, minutes] = timeStr.split(":").map(Number)
-    const newHours = (hours + 1) % 24
-    return `${String(newHours).padStart(2, "0")}:${String(minutes || 0).padStart(2, "0")}`
+    if (hours >= CLOSING_HOUR) {
+      // If starting at or after closing, end time = start time (edge case)
+      return timeStr
+    }
+    const endHours = hours + 1
+    if (endHours > CLOSING_HOUR) {
+      // Clamp to closing hour
+      return `${String(CLOSING_HOUR).padStart(2, "0")}:00`
+    }
+    return `${String(endHours).padStart(2, "0")}:${String(minutes || 0).padStart(2, "0")}`
   }
 
   const [formData, setFormData] = useState<Partial<CalendarAppointment>>({
@@ -61,13 +73,43 @@ export function AppointmentModal({
   const [newPatientData, setNewPatientData] = useState({ name: "", phone: "", email: "" })
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [isPatientPopoverOpen, setIsPatientPopoverOpen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Memoized patient lists for performance
+  const recentPatients = useMemo(() => {
+    // Return last 5 patients (most recent based on order in array)
+    return patients.slice(0, 5)
+  }, [patients])
+
+  const selectedPatient = useMemo(() => {
+    return patients.find((p) => p.id === formData.patient_id)
+  }, [patients, formData.patient_id])
+
+  const filteredPatients = useMemo(() => {
+    if (!searchQuery) return patients
+    const query = searchQuery.toLowerCase()
+    return patients.filter(
+      (patient) =>
+        patient.name?.toLowerCase().includes(query) ||
+        patient.kana?.toLowerCase().includes(query) ||
+        patient.phone?.includes(query)
+    )
+  }, [patients, searchQuery])
 
   useEffect(() => {
     if (isOpen) {
       loadPatients()
       setError(null)
+      // Auto-focus search input when modal opens after a short delay
+      setTimeout(() => {
+        if (!appointment && searchInputRef.current) {
+          searchInputRef.current.focus()
+        }
+      }, 100)
     }
-  }, [isOpen])
+  }, [isOpen, appointment])
 
   const loadPatients = async () => {
     try {
@@ -86,17 +128,19 @@ export function AppointmentModal({
   }
 
   useEffect(() => {
+    // Initialize form based on appointment (edit mode) or initialSlotData (empty cell click) or defaults
     if (appointment) {
+      // Edit existing appointment
       setFormData(appointment)
       setIsNewPatient(false)
-    } else {
-      const date = initialDate ? initialDate.toISOString().split("T")[0] : getCurrentDate()
-      const startTime = initialTime || "09:00"
-      const endTime = addOneHour(startTime)
-      const staffId = initialStaffId || staff[0]?.id
+    } else if (initialSlotData) {
+      // Creating appointment from empty cell click - prefill date, time, and staff
+      const startTime = initialSlotData.time || "09:00"
+      const endTime = calculateEndTime(startTime)
+      const staffId = initialSlotData.staffId || staff[0]?.id
 
       setFormData({
-        date,
+        date: initialSlotData.date,
         start_time: startTime,
         end_time: endTime,
         treatment_type: "定期検診",
@@ -107,9 +151,24 @@ export function AppointmentModal({
       })
       setIsNewPatient(false)
       setNewPatientData({ name: "", phone: "", email: "" })
+    } else {
+      // Creating appointment from toolbar - use current defaults
+      setFormData({
+        date: getCurrentDate(),
+        start_time: "09:00",
+        end_time: "10:00",
+        treatment_type: "定期検診",
+        status: "confirmed",
+        chair_number: 1,
+        notes: "",
+        staff_id: staff[0]?.id,
+      })
+      setIsNewPatient(false)
+      setNewPatientData({ name: "", phone: "", email: "" })
     }
     setError(null)
-  }, [appointment, staff, initialDate, initialTime, initialStaffId])
+    setSearchQuery("")
+  }, [appointment, staff, initialSlotData])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -123,8 +182,17 @@ export function AppointmentModal({
         return
       }
 
+      // Validate end_time > start_time
       if (formData.start_time >= formData.end_time) {
         setError("終了時刻は開始時刻より後に設定してください")
+        setIsSaving(false)
+        return
+      }
+
+      // Validate end_time does not exceed closing hour
+      const endHour = Number.parseInt(formData.end_time.split(":")[0])
+      if (endHour > CLOSING_HOUR) {
+        setError(`終了時刻は閉院時刻（${CLOSING_HOUR}:00）を超えることはできません`)
         setIsSaving(false)
         return
       }
@@ -183,13 +251,17 @@ export function AppointmentModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label>患者</Label>
+            <Label htmlFor="patient-select">患者</Label>
             <div className="flex gap-2 mb-2">
               <Button
                 type="button"
                 variant={!isNewPatient ? "default" : "outline"}
                 size="sm"
-                onClick={() => setIsNewPatient(false)}
+                onClick={() => {
+                  setIsNewPatient(false)
+                  setSearchQuery("")
+                }}
+                disabled={isSaving}
               >
                 既存患者
               </Button>
@@ -198,47 +270,133 @@ export function AppointmentModal({
                 variant={isNewPatient ? "default" : "outline"}
                 size="sm"
                 onClick={() => setIsNewPatient(true)}
+                disabled={isSaving}
               >
+                <UserPlus className="h-4 w-4 mr-1" />
                 新規患者
               </Button>
             </div>
 
             {!isNewPatient ? (
-              <Select
-                value={formData.patient_id}
-                onValueChange={(value) => setFormData({ ...formData, patient_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="患者を選択" />
-                </SelectTrigger>
-                <SelectContent>
-                  {patients.map((patient) => (
-                    <SelectItem key={patient.id} value={patient.id}>
-                      {patient.name} ({patient.phone})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={isPatientPopoverOpen} onOpenChange={setIsPatientPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="patient-select"
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-haspopup="listbox"
+                    aria-expanded={isPatientPopoverOpen}
+                    aria-label="患者を選択"
+                    className={cn("w-full justify-between", !selectedPatient && "text-muted-foreground")}
+                    disabled={isSaving}
+                  >
+                    {selectedPatient ? `${selectedPatient.name} (${selectedPatient.phone})` : "患者を選択"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <Command>
+                    <CommandInput
+                      ref={searchInputRef}
+                      placeholder="患者名、カナ、電話番号で検索..."
+                      value={searchQuery}
+                      onValueChange={setSearchQuery}
+                    />
+                    <CommandList>
+                      <CommandEmpty>該当する患者が見つかりません</CommandEmpty>
+                      {recentPatients.length > 0 && !searchQuery && (
+                        <CommandGroup heading="最近の患者">
+                          {recentPatients.map((patient) => (
+                            <CommandItem
+                              key={patient.id}
+                              value={patient.id}
+                              onSelect={() => {
+                                setFormData({ ...formData, patient_id: patient.id })
+                                setIsPatientPopoverOpen(false)
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedPatient?.id === patient.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col">
+                                <span>{patient.name}</span>
+                                <span className="text-xs text-muted-foreground">{patient.phone}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      )}
+                      {searchQuery && filteredPatients.length > 0 && (
+                        <CommandGroup heading="検索結果">
+                          {filteredPatients.map((patient) => (
+                            <CommandItem
+                              key={patient.id}
+                              value={patient.id}
+                              onSelect={() => {
+                                setFormData({ ...formData, patient_id: patient.id })
+                                setIsPatientPopoverOpen(false)
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedPatient?.id === patient.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col">
+                                <span>{patient.name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {patient.kana && `${patient.kana} | `}
+                                  {patient.phone}
+                                </span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      )}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             ) : (
               <div className="space-y-2">
-                <Input
-                  placeholder="患者名"
-                  value={newPatientData.name}
-                  onChange={(e) => setNewPatientData({ ...newPatientData, name: e.target.value })}
-                  required
-                />
-                <Input
-                  placeholder="電話番号"
-                  value={newPatientData.phone}
-                  onChange={(e) => setNewPatientData({ ...newPatientData, phone: e.target.value })}
-                  required
-                />
-                <Input
-                  placeholder="メールアドレス（任意）"
-                  type="email"
-                  value={newPatientData.email}
-                  onChange={(e) => setNewPatientData({ ...newPatientData, email: e.target.value })}
-                />
+                <div>
+                  <Label htmlFor="new-patient-name">患者名 *</Label>
+                  <Input
+                    id="new-patient-name"
+                    placeholder="患者名"
+                    value={newPatientData.name}
+                    onChange={(e) => setNewPatientData({ ...newPatientData, name: e.target.value })}
+                    disabled={isSaving}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="new-patient-phone">電話番号 *</Label>
+                  <Input
+                    id="new-patient-phone"
+                    placeholder="電話番号"
+                    value={newPatientData.phone}
+                    onChange={(e) => setNewPatientData({ ...newPatientData, phone: e.target.value })}
+                    disabled={isSaving}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="new-patient-email">メールアドレス（任意）</Label>
+                  <Input
+                    id="new-patient-email"
+                    placeholder="メールアドレス"
+                    type="email"
+                    value={newPatientData.email}
+                    onChange={(e) => setNewPatientData({ ...newPatientData, email: e.target.value })}
+                    disabled={isSaving}
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -251,6 +409,7 @@ export function AppointmentModal({
                 type="date"
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                disabled={isSaving}
                 required
               />
             </div>
@@ -260,6 +419,7 @@ export function AppointmentModal({
               <Select
                 value={formData.staff_id}
                 onValueChange={(value) => setFormData({ ...formData, staff_id: value })}
+                disabled={isSaving}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="担当者を選択" />
@@ -283,6 +443,7 @@ export function AppointmentModal({
                 type="time"
                 value={formData.start_time}
                 onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                disabled={isSaving}
                 required
               />
             </div>
@@ -294,6 +455,7 @@ export function AppointmentModal({
                 type="time"
                 value={formData.end_time}
                 onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                disabled={isSaving}
                 required
               />
             </div>
@@ -303,6 +465,7 @@ export function AppointmentModal({
               <Select
                 value={formData.chair_number?.toString()}
                 onValueChange={(value) => setFormData({ ...formData, chair_number: Number.parseInt(value) })}
+                disabled={isSaving}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -323,6 +486,7 @@ export function AppointmentModal({
             <Select
               value={formData.treatment_type}
               onValueChange={(value) => setFormData({ ...formData, treatment_type: value })}
+              disabled={isSaving}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -342,7 +506,11 @@ export function AppointmentModal({
 
           <div>
             <Label htmlFor="status">ステータス</Label>
-            <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+            <Select
+              value={formData.status}
+              onValueChange={(value) => setFormData({ ...formData, status: value })}
+              disabled={isSaving}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -364,6 +532,7 @@ export function AppointmentModal({
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={3}
               placeholder="特記事項があれば記入してください"
+              disabled={isSaving}
             />
           </div>
 
