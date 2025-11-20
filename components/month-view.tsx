@@ -26,6 +26,12 @@ export function MonthView({ currentDate, appointments, onAppointmentClick }: Mon
   const calendarStart = startOfWeek(monthStart, { locale: ja })
   const calendarEnd = endOfWeek(monthEnd, { locale: ja })
 
+  const formatHm = (t: string) => {
+    if (!t) return ""
+    const [h, m] = t.split(":")
+    return `${h.padStart(2, "0")}:${(m || "00").padStart(2, "0")}`
+  }
+
   const days = []
   let day = calendarStart
   while (day <= calendarEnd) {
@@ -58,7 +64,7 @@ export function MonthView({ currentDate, appointments, onAppointmentClick }: Mon
                     onClick={() => onAppointmentClick(apt)}
                     className="text-xs p-1 bg-blue-100 rounded cursor-pointer hover:bg-blue-200 truncate"
                   >
-                    {apt.start_time} {apt.patient?.name}
+                    {formatHm(apt.start_time)} {apt.patient?.name}
                   </div>
                 ))}
                 {dayAppointments.length > 3 && (

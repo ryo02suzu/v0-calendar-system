@@ -15,6 +15,12 @@ interface DayViewProps {
 export function DayView({ currentDate, appointments, staff, onAppointmentClick, onEmptyCellClick }: DayViewProps) {
   const hours = Array.from({ length: 11 }, (_, i) => i + 9) // 9:00 - 19:00
 
+  const formatHm = (t: string) => {
+    if (!t) return ""
+    const [h, m] = t.split(":")
+    return `${h.padStart(2, "0")}:${(m || "00").padStart(2, "0")}`
+  }
+
   const getAppointmentsForCell = (staffId: string, hour: number) => {
     return appointments.filter((apt) => {
       const aptDate = parseISO(apt.date)
@@ -79,7 +85,7 @@ export function DayView({ currentDate, appointments, staff, onAppointmentClick, 
                     >
                       <div className="font-medium">{apt.patient?.name}</div>
                       <div>
-                        {apt.start_time} - {apt.end_time}
+                        {formatHm(apt.start_time)} - {formatHm(apt.end_time)}
                       </div>
                       <div>{apt.treatment_type}</div>
                       {apt.chair_number && <div>チェア{apt.chair_number}</div>}
