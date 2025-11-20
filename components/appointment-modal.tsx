@@ -92,12 +92,15 @@ export function AppointmentModal({
     }
     
     const endHours = hours + 1
-    if (endHours > closingHour) {
+    const endMinutes = minutes || 0
+    
+    // Check if end time would exceed closing hour
+    if (endHours > closingHour || (endHours === closingHour && endMinutes > 0)) {
       // Clamp to closing hour
       return `${String(closingHour).padStart(2, "0")}:00`
     }
     
-    return `${String(endHours).padStart(2, "0")}:${String(minutes || 0).padStart(2, "0")}`
+    return `${String(endHours).padStart(2, "0")}:${String(endMinutes).padStart(2, "0")}`
   }
 
   const [formData, setFormData] = useState<Partial<CalendarAppointment>>({
