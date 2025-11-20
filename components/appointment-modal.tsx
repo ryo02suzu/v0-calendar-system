@@ -1,7 +1,6 @@
 "use client"
 
-import type React from "react"
-import { useState, useEffect, useMemo, useRef } from "react"
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,22 +15,61 @@ import { cn } from "@/lib/utils"
 import type { Patient, Staff } from "@/lib/types"
 import type { CalendarAppointment } from "@/types/api"
 
-/**
- * Convert hiragana to katakana for search matching
- */
+/* ================== Utility functions ================== */
+
+/** Convert hiragana characters to katakana for robust search matching */
 function hiraganaToKatakana(str: string): string {
-  return str.replace(/[\u3041-\u3096]/g, (match) => {
-    const chr = match.charCodeAt(0) + 0x60
-    return String.fromCharCode(chr)
-  })
+  return str.replace(/[\u3041-\u3096]/g, (match) => String.fromCharCode(match.charCodeAt(0) + 0x60))
 }
 
-/**
- * Normalize search string: remove spaces, hyphens, convert to lowercase, hiragana -> katakana
- */
+/** Normalize search string: strip spaces & hyphens, lowercase, kana normalization */
 function normalizeSearchString(str: string): string {
   return hiraganaToKatakana(str.replace(/[\s\-]/g, "").toLowerCase())
 }
+
+/** Weekday closing hour logic */
+function getClosingHour(dateStr: string): number {
+  const date = new Date(dateStr)
+  const dayOfWeek = date.getDay() // 0 Sun ... 6 Sat
+  if (dayOfWeek >= 1 && dayOfWeek <= 5) return 18     // Mon-Fri
+  if (dayOfWeek === 6) return 13                      // Sat
+  return 19                                           // Sun fallback
+}
+
+/** Calculate end_time = start_time + 1h, clamped to closing hour */
+function calculateEndTime(start: string, dateStr: string): string {
+  const closingHour = getClosingHour(dateStr)
+  const [h, m] = start.split(":").map(Number)
+  if (h >= closingHour) return `${String(closingHour).padStart(2, "0")}:00`
+  const endH = h + 1
+  const endM = m || 0
+  if (endH > closingHour || (endH === closingHour && endM > 0)) return `${String(closingHour).padStart(2, "0")}:00`
+  return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`
+}
+
+/** Validate ordering of HH:MM time strings (lexicographical works) */
+function isStartBeforeEnd(start: string, end: string): boolean {
+  return start < end
+}
+
+/** Normalize phone (basic: remove spaces & hyphens) */
+function normalizePhone(phone: string): string {
+  return phone.replace(/[\s\-]/g, "")
+}
+
+/** YYYY-MM-DD (local) */
+function getCurrentDate(): string {
+  const now = new Date()
+  return now.toISOString().split("T")[0]
+}
+
+/** Build unified search value for CommandItem (internal filtering) */
+function buildPatientSearchValue(patient: Patient): string {
+  const kana = (patient as any).kana || (patient as any).name_kana || ""
+  return [patient.name, kana, patient.phone, patient.patient_number].filter(Boolean).join(" ")
+}
+
+/* ================== Types ================== */
 
 interface AppointmentModalProps {
   isOpen: boolean
@@ -43,6 +81,20 @@ interface AppointmentModalProps {
   initialSlotData?: { date: string; time: string; staffId?: string } | null
 }
 
+type AppointmentStatus = "pending" | "confirmed" | "cancelled" | "completed" | "no_show"
+
+interface EditableFields {
+  date: string
+  start_time: string
+  end_time: string
+  treatment_type: string
+  status: AppointmentStatus
+  chair_number: number
+  notes?: string
+  staff_id?: string
+  patient_id?: string
+}
+
 export function AppointmentModal({
   isOpen,
   onClose,
@@ -52,58 +104,8 @@ export function AppointmentModal({
   onDelete,
   initialSlotData,
 }: AppointmentModalProps) {
-  const getCurrentDate = () => {
-    const now = new Date()
-    return now.toISOString().split("T")[0]
-  }
-
-  /**
-   * Compute closing hour based on date's day of week
-   * Weekday (Mon-Fri): 18:00
-   * Saturday: 13:00
-   * Sunday: fallback to 19:00 (edge case, clinic usually closed)
-   */
-  const getClosingHour = (dateStr: string): number => {
-    const date = new Date(dateStr)
-    const dayOfWeek = date.getDay() // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-      // Monday to Friday
-      return 18
-    } else if (dayOfWeek === 6) {
-      // Saturday
-      return 13
-    } else {
-      // Sunday - fallback
-      return 19
-    }
-  }
-
-  /**
-   * Calculate end_time = start_time + 1h, but clamp to closing hour
-   * Closing hour determined by date's day of week
-   */
-  const calculateEndTime = (timeStr: string, dateStr: string) => {
-    const closingHour = getClosingHour(dateStr)
-    const [hours, minutes] = timeStr.split(":").map(Number)
-    
-    if (hours >= closingHour) {
-      // If starting at or after closing, end time = closing hour
-      return `${String(closingHour).padStart(2, "0")}:00`
-    }
-    
-    const endHours = hours + 1
-    const endMinutes = minutes || 0
-    
-    // Check if end time would exceed closing hour
-    if (endHours > closingHour || (endHours === closingHour && endMinutes > 0)) {
-      // Clamp to closing hour
-      return `${String(closingHour).padStart(2, "0")}:00`
-    }
-    
-    return `${String(endHours).padStart(2, "0")}:${String(endMinutes).padStart(2, "0")}`
-  }
-
-  const [formData, setFormData] = useState<Partial<CalendarAppointment>>({
+  /* ================== State ================== */
+  const [formData, setFormData] = useState<EditableFields>({
     date: getCurrentDate(),
     start_time: "09:00",
     end_time: "10:00",
@@ -111,6 +113,8 @@ export function AppointmentModal({
     status: "confirmed",
     chair_number: 1,
     notes: "",
+    staff_id: staff[0]?.id,
+    patient_id: undefined,
   })
   const [patients, setPatients] = useState<Patient[]>([])
   const [isNewPatient, setIsNewPatient] = useState(false)
@@ -119,185 +123,212 @@ export function AppointmentModal({
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [isPatientPopoverOpen, setIsPatientPopoverOpen] = useState(false)
+
+  /* ================== Refs ================== */
   const searchInputRef = useRef<HTMLInputElement>(null)
   const newPatientNameRef = useRef<HTMLInputElement>(null)
 
-  // Memoized patient lists for performance
-  const recentPatients = useMemo(() => {
-    // Return last 5 patients (most recent based on order in array)
-    return patients.slice(0, 5)
-  }, [patients])
+  /* ================== Derived values ================== */
+  const recentPatients = useMemo(() => patients.slice(0, 5), [patients])
 
   const selectedPatient = useMemo(() => {
-    return patients.find((p) => p.id === formData.patient_id)
+    return formData.patient_id ? patients.find((p) => p.id === formData.patient_id) : undefined
   }, [patients, formData.patient_id])
 
   const filteredPatients = useMemo(() => {
     if (!searchQuery) return patients
-    
-    // Normalize search query: hiragana -> katakana, remove spaces/hyphens, lowercase
     const normalizedQuery = normalizeSearchString(searchQuery)
-    
     return patients.filter((patient) => {
-      // Normalize patient fields for comparison
-      const normalizedName = normalizeSearchString(patient.name || "")
-      const normalizedKana = normalizeSearchString(patient.kana || "")
-      const normalizedPhone = (patient.phone || "").replace(/[\s\-]/g, "")
-      const normalizedPatientNumber = (patient.patient_number || "").replace(/[\s\-]/g, "")
-      
+      const kanaField = (patient as any).kana || (patient as any).name_kana || ""
+      const nameNorm = normalizeSearchString(patient.name || "")
+      const kanaNorm = normalizeSearchString(kanaField || "")
+      const phoneNorm = normalizePhone(patient.phone || "")
+      const numberNorm = (patient.patient_number || "").replace(/[\s\-]/g, "")
       return (
-        normalizedName.includes(normalizedQuery) ||
-        normalizedKana.includes(normalizedQuery) ||
-        normalizedPhone.includes(normalizedQuery) ||
-        normalizedPatientNumber.includes(normalizedQuery)
+        nameNorm.includes(normalizedQuery) ||
+        kanaNorm.includes(normalizedQuery) ||
+        phoneNorm.includes(normalizedQuery) ||
+        numberNorm.includes(normalizedQuery)
       )
     })
   }, [patients, searchQuery])
 
-  useEffect(() => {
-    if (isOpen) {
-      loadPatients()
-      setError(null)
-      // Auto-focus appropriate input based on mode
-      setTimeout(() => {
-        if (!appointment) {
-          if (isNewPatient && newPatientNameRef.current) {
-            newPatientNameRef.current.focus()
-          } else if (!isNewPatient && searchInputRef.current) {
-            searchInputRef.current.focus()
-          }
-        }
-      }, 100)
-    }
-  }, [isOpen, appointment, isNewPatient])
-
-  const loadPatients = async () => {
+  /* ================== Data loading ================== */
+  const loadPatients = useCallback(async () => {
     try {
       const response = await fetch("/api/patients", { cache: "no-store" })
       const json = await response.json()
-
-      if (!response.ok) {
-        throw new Error(json.error || "患者データの取得に失敗しました")
-      }
-
-      setPatients(json.data || [])
-    } catch (error) {
-      console.error("[v0] Error loading patients:", error)
+      if (!response.ok) throw new Error(json.error || "患者データの取得に失敗しました")
+      setPatients(Array.isArray(json.data) ? json.data : [])
+    } catch (err) {
+      console.error("[v0] Error loading patients:", err)
       setError("患者データの読み込みに失敗しました")
     }
-  }
+  }, [])
 
-  useEffect(() => {
-    // Initialize form based on appointment (edit mode) or initialSlotData (empty cell click) or defaults
-    if (appointment) {
-      // Edit existing appointment
-      setFormData(appointment)
-      setIsNewPatient(false)
-    } else if (initialSlotData) {
-      // Creating appointment from empty cell click - prefill date, time, and staff
-      const startTime = initialSlotData.time || "09:00"
-      const dateStr = initialSlotData.date
-      const endTime = calculateEndTime(startTime, dateStr)
-      const staffId = initialSlotData.staffId || staff[0]?.id
+  /* ================== Initialization helpers ================== */
+  const resetNewPatientForm = useCallback(() => {
+    setNewPatientData({ name: "", phone: "", email: "" })
+  }, [])
 
+  const initializeForSlot = useCallback(
+    (dateStr: string, timeStr: string, staffId?: string) => {
+      const computedEnd = calculateEndTime(timeStr, dateStr)
       setFormData({
         date: dateStr,
-        start_time: startTime,
-        end_time: endTime,
+        start_time: timeStr,
+        end_time: computedEnd,
         treatment_type: "定期検診",
         status: "confirmed",
         chair_number: 1,
         notes: "",
-        staff_id: staffId,
+        staff_id: staffId || staff[0]?.id,
+        patient_id: undefined,
       })
       setIsNewPatient(false)
-      setNewPatientData({ name: "", phone: "", email: "" })
-    } else {
-      // Creating appointment from toolbar - use current defaults
-      const currentDateStr = getCurrentDate()
+      resetNewPatientForm()
+      setSearchQuery("")
+    },
+    [staff, resetNewPatientForm]
+  )
+
+  const initializeDefaults = useCallback(() => {
+    const dateStr = getCurrentDate()
+    initializeForSlot(dateStr, "09:00", staff[0]?.id)
+  }, [initializeForSlot, staff])
+
+  const initializeFromAppointment = useCallback(
+    (appt: CalendarAppointment) => {
       setFormData({
-        date: currentDateStr,
-        start_time: "09:00",
-        end_time: calculateEndTime("09:00", currentDateStr),
-        treatment_type: "定期検診",
-        status: "confirmed",
-        chair_number: 1,
-        notes: "",
-        staff_id: staff[0]?.id,
+        date: appt.date,
+        start_time: appt.start_time,
+        end_time: appt.end_time,
+        treatment_type: appt.treatment_type,
+        status: appt.status as AppointmentStatus,
+        chair_number: appt.chair_number,
+        notes: appt.notes,
+        staff_id: appt.staff_id,
+        patient_id: appt.patient_id,
       })
       setIsNewPatient(false)
-      setNewPatientData({ name: "", phone: "", email: "" })
+      resetNewPatientForm()
+      setSearchQuery("")
+    },
+    [resetNewPatientForm]
+  )
+
+  /* ================== Effects ================== */
+  useEffect(() => {
+    if (!isOpen) return
+    loadPatients()
+    setError(null)
+  }, [isOpen, loadPatients])
+
+  useEffect(() => {
+    if (!isOpen) return
+    if (appointment) {
+      initializeFromAppointment(appointment)
+    } else if (initialSlotData) {
+      initializeForSlot(initialSlotData.date, initialSlotData.time || "09:00", initialSlotData.staffId)
+    } else {
+      initializeDefaults()
     }
-    setError(null)
-    setSearchQuery("")
-  }, [appointment, staff, initialSlotData])
+  }, [isOpen, appointment, initialSlotData, initializeDefaults, initializeForSlot, initializeFromAppointment])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setIsSaving(true)
-
-    try {
-      if (!formData.date || !formData.start_time || !formData.end_time || !formData.staff_id) {
-        setError("必須項目を全て入力してください")
-        setIsSaving(false)
-        return
-      }
-
-      // Validate end_time > start_time
-      if (formData.start_time >= formData.end_time) {
-        setError("終了時刻は開始時刻より後に設定してください")
-        setIsSaving(false)
-        return
-      }
-
-      // Validate end_time does not exceed closing hour for the selected date
-      const closingHour = getClosingHour(formData.date)
-      const endHour = Number.parseInt(formData.end_time.split(":")[0])
-      if (endHour > closingHour) {
-        setError(`終了時刻は閉院時刻（${closingHour}:00）を超えることはできません`)
-        setIsSaving(false)
-        return
-      }
-
-      let patientId = formData.patient_id
-
+  useEffect(() => {
+    if (!isOpen) return
+    const timer = setTimeout(() => {
       if (isNewPatient) {
-        if (!newPatientData.name || !newPatientData.phone) {
-          setError("患者名と電話番号は必須です")
-          setIsSaving(false)
-          return
-        }
-
-        const newPatient = await createPatientViaApi(newPatientData)
-        setPatients((prev) => [newPatient, ...prev])
-        patientId = newPatient.id
+        newPatientNameRef.current?.focus()
       } else {
-        if (!patientId) {
-          setError("患者を選択してください")
-          setIsSaving(false)
-          return
-        }
+        searchInputRef.current?.focus()
       }
+    }, 80)
+    return () => clearTimeout(timer)
+  }, [isOpen, isNewPatient])
 
-      const { patient, staff, ...appointmentData } = formData as any
+  /* ================== Handlers ================== */
+  const handleSelectPatient = useCallback(
+    (patientId: string) => {
+      setFormData((prev) => ({ ...prev, patient_id: patientId }))
+      setIsPatientPopoverOpen(false)
+    },
+    []
+  )
 
-      await onSave({
-        ...appointmentData,
-        id: appointment?.id || crypto.randomUUID(),
-        patient_id: patientId!,
-        staff_id: formData.staff_id!,
-      } as CalendarAppointment)
+  const handleNewPatientFieldChange = useCallback(
+    (key: keyof typeof newPatientData, value: string) => {
+      setNewPatientData((prev) => ({ ...prev, [key]: value }))
+    },
+    []
+  )
 
-      onClose()
-    } catch (error: any) {
-      console.error("[v0] Error saving appointment:", error)
-      setError(error?.message || "予約の保存に失敗しました")
-    } finally {
-      setIsSaving(false)
-    }
-  }
+  const createPatientViaApi = useCallback(async (patient: { name: string; phone: string; email?: string }) => {
+    const response = await fetch("/api/patients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patient),
+    })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(data.error || "患者の作成に失敗しました")
+    return data.data as Patient
+  }, [])
 
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault()
+      if (isSaving) return
+      setError(null)
+      setIsSaving(true)
+      try {
+        const { date, start_time, end_time, staff_id, patient_id } = formData
+        if (!date || !start_time || !end_time || !staff_id) throw new Error("必須項目を全て入力してください")
+        if (!isStartBeforeEnd(start_time, end_time)) throw new Error("終了時刻は開始時刻より後に設定してください")
+
+        const closingHour = getClosingHour(date)
+        const endHour = Number.parseInt(end_time.split(":")[0])
+        if (endHour > closingHour) throw new Error(`終了時刻は閉院時刻（${closingHour}:00）を超えることはできません`)
+
+        let resolvedPatientId = patient_id
+        if (isNewPatient) {
+          if (!newPatientData.name || !newPatientData.phone) throw new Error("患者名と電話番号は必須です")
+          const created = await createPatientViaApi({
+            name: newPatientData.name.trim(),
+            phone: normalizePhone(newPatientData.phone),
+            email: newPatientData.email.trim() || undefined,
+          })
+          setPatients((prev) => [created, ...prev])
+          resolvedPatientId = created.id
+        } else if (!resolvedPatientId) {
+          throw new Error("患者を選択してください")
+        }
+
+        const payload: CalendarAppointment = {
+          id: appointment?.id || crypto.randomUUID(),
+          date: formData.date,
+          start_time: formData.start_time,
+          end_time: formData.end_time,
+          treatment_type: formData.treatment_type,
+          status: formData.status,
+          chair_number: formData.chair_number,
+          notes: formData.notes,
+          staff_id: formData.staff_id!,
+          patient_id: resolvedPatientId!,
+        }
+
+        await onSave(payload)
+        onClose()
+      } catch (err: any) {
+        console.error("[v0] Error saving appointment:", err)
+        setError(err?.message || "予約の保存に失敗しました")
+      } finally {
+        setIsSaving(false)
+      }
+    },
+    [formData, isNewPatient, newPatientData, appointment, onSave, onClose, createPatientViaApi, isSaving]
+  )
+
+  /* ================== Render ================== */
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -381,11 +412,8 @@ export function AppointmentModal({
                           {recentPatients.map((patient) => (
                             <CommandItem
                               key={patient.id}
-                              value={patient.id}
-                              onSelect={() => {
-                                setFormData({ ...formData, patient_id: patient.id })
-                                setIsPatientPopoverOpen(false)
-                              }}
+                              value={buildPatientSearchValue(patient)}
+                              onSelect={() => handleSelectPatient(patient.id)}
                             >
                               <Check
                                 className={cn(
@@ -399,7 +427,9 @@ export function AppointmentModal({
                                   {patient.patient_number && ` [${patient.patient_number}]`}
                                 </span>
                                 <span className="text-xs text-muted-foreground truncate">
-                                  {patient.kana && `${patient.kana} | `}
+                                  {(patient as any).kana || (patient as any).name_kana
+                                    ? `${(patient as any).kana || (patient as any).name_kana} | `
+                                    : ""}
                                   {patient.phone}
                                 </span>
                               </div>
@@ -412,11 +442,8 @@ export function AppointmentModal({
                           {filteredPatients.map((patient) => (
                             <CommandItem
                               key={patient.id}
-                              value={patient.id}
-                              onSelect={() => {
-                                setFormData({ ...formData, patient_id: patient.id })
-                                setIsPatientPopoverOpen(false)
-                              }}
+                              value={buildPatientSearchValue(patient)}
+                              onSelect={() => handleSelectPatient(patient.id)}
                             >
                               <Check
                                 className={cn(
@@ -430,7 +457,9 @@ export function AppointmentModal({
                                   {patient.patient_number && ` [${patient.patient_number}]`}
                                 </span>
                                 <span className="text-xs text-muted-foreground truncate">
-                                  {patient.kana && `${patient.kana} | `}
+                                  {(patient as any).kana || (patient as any).name_kana
+                                    ? `${(patient as any).kana || (patient as any).name_kana} | `
+                                    : ""}
                                   {patient.phone}
                                 </span>
                               </div>
@@ -451,7 +480,7 @@ export function AppointmentModal({
                     id="new-patient-name"
                     placeholder="患者名"
                     value={newPatientData.name}
-                    onChange={(e) => setNewPatientData({ ...newPatientData, name: e.target.value })}
+                    onChange={(e) => handleNewPatientFieldChange("name", e.target.value)}
                     disabled={isSaving}
                     required
                   />
@@ -462,7 +491,7 @@ export function AppointmentModal({
                     id="new-patient-phone"
                     placeholder="電話番号"
                     value={newPatientData.phone}
-                    onChange={(e) => setNewPatientData({ ...newPatientData, phone: e.target.value })}
+                    onChange={(e) => handleNewPatientFieldChange("phone", e.target.value)}
                     disabled={isSaving}
                     required
                   />
@@ -474,7 +503,7 @@ export function AppointmentModal({
                     placeholder="メールアドレス"
                     type="email"
                     value={newPatientData.email}
-                    onChange={(e) => setNewPatientData({ ...newPatientData, email: e.target.value })}
+                    onChange={(e) => handleNewPatientFieldChange("email", e.target.value)}
                     disabled={isSaving}
                   />
                 </div>
@@ -489,7 +518,7 @@ export function AppointmentModal({
                 id="date"
                 type="date"
                 value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))}
                 disabled={isSaving}
                 required
               />
@@ -499,7 +528,7 @@ export function AppointmentModal({
               <Label htmlFor="staff_id">担当者</Label>
               <Select
                 value={formData.staff_id}
-                onValueChange={(value) => setFormData({ ...formData, staff_id: value })}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, staff_id: value }))}
                 disabled={isSaving}
               >
                 <SelectTrigger>
@@ -516,14 +545,14 @@ export function AppointmentModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-4">
             <div>
               <Label htmlFor="start_time">開始時間</Label>
               <Input
                 id="start_time"
                 type="time"
                 value={formData.start_time}
-                onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                onChange={(e) => setFormData((prev) => ({ ...prev, start_time: e.target.value }))}
                 disabled={isSaving}
                 required
               />
@@ -535,7 +564,7 @@ export function AppointmentModal({
                 id="end_time"
                 type="time"
                 value={formData.end_time}
-                onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                onChange={(e) => setFormData((prev) => ({ ...prev, end_time: e.target.value }))}
                 disabled={isSaving}
                 required
               />
@@ -544,8 +573,10 @@ export function AppointmentModal({
             <div>
               <Label htmlFor="chair_number">チェア番号</Label>
               <Select
-                value={formData.chair_number?.toString()}
-                onValueChange={(value) => setFormData({ ...formData, chair_number: Number.parseInt(value) })}
+                value={formData.chair_number.toString()}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, chair_number: Number.parseInt(value) }))
+                }
                 disabled={isSaving}
               >
                 <SelectTrigger>
@@ -566,7 +597,7 @@ export function AppointmentModal({
             <Label htmlFor="treatment_type">治療内容</Label>
             <Select
               value={formData.treatment_type}
-              onValueChange={(value) => setFormData({ ...formData, treatment_type: value })}
+              onValueChange={(value) => setFormData((prev) => ({ ...prev, treatment_type: value }))}
               disabled={isSaving}
             >
               <SelectTrigger>
@@ -589,12 +620,7 @@ export function AppointmentModal({
             <Label htmlFor="status">ステータス</Label>
             <Select
               value={formData.status}
-              onValueChange={(value) =>
-                setFormData({
-                  ...formData,
-                  status: value as "pending" | "confirmed" | "cancelled" | "completed" | "no_show",
-                })
-              }
+              onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value as AppointmentStatus }))}
               disabled={isSaving}
             >
               <SelectTrigger>
@@ -615,7 +641,7 @@ export function AppointmentModal({
             <Textarea
               id="notes"
               value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
               rows={3}
               placeholder="特記事項があれば記入してください"
               disabled={isSaving}
@@ -633,6 +659,7 @@ export function AppointmentModal({
                       onDelete(appointment.id)
                     }
                   }}
+                  disabled={isSaving}
                 >
                   削除
                 </Button>
@@ -651,20 +678,4 @@ export function AppointmentModal({
       </DialogContent>
     </Dialog>
   )
-}
-
-async function createPatientViaApi(patient: { name: string; phone: string; email?: string }) {
-  const response = await fetch("/api/patients", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(patient),
-  })
-
-  const data = await response.json().catch(() => ({}))
-
-  if (!response.ok) {
-    throw new Error(data.error || "患者の作成に失敗しました")
-  }
-
-  return data.data as Patient
 }
