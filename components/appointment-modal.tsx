@@ -38,11 +38,11 @@ interface AppointmentModalProps {
 
 /* ひらがな→カタカナ */
 function hiraToKata(str: string) {
-  return str.replace(/[\u3041-\u3096]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60))
+  return str.replace(/[\u3041-\u3096]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) + 0x60))
 }
 /* カタカナ→ひらがな */
 function kataToHira(str: string) {
-  return str.replace(/[\u30A1-\u30F6]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60))
+  return str.replace(/[\u30A1-\u30F6]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60))
 }
 
 /* 正規化（スペース/ハイフン除去＋小文字化） */
@@ -102,7 +102,7 @@ export function AppointmentModal({
   const recentPatients = useMemo(() => patients.slice(0, 10), [patients])
 
   const selectedPatient = useMemo(
-    () => patients.find(p => p.id === formData.patient_id),
+    () => patients.find((p) => p.id === formData.patient_id),
     [patients, formData.patient_id],
   )
 
@@ -112,7 +112,7 @@ export function AppointmentModal({
     const queryVariants = buildVariants(searchValue)
     if (queryVariants.length === 0) return patients
 
-    const matches = patients.filter(p => {
+    const matches = patients.filter((p) => {
       const nameField = p.name || ""
       // kana は mapPatientFromDb 後のフィールド。万一 name_kana が残っていても対応
       const kanaField = (p as any).kana || (p as any).name_kana || ""
@@ -130,7 +130,7 @@ export function AppointmentModal({
       ].filter(Boolean)
 
       // 部分一致: いずれかの variant がいずれかの targetStrings に含まれる
-      return queryVariants.some(qv => targetStrings.some(ts => ts.includes(qv)))
+      return queryVariants.some((qv) => targetStrings.some((ts) => ts.includes(qv)))
     })
 
     if (debugSearch && matches.length === 0) {
@@ -140,7 +140,7 @@ export function AppointmentModal({
       console.log("queryVariants:", queryVariants)
       console.log(
         "first 5 patients sample:",
-        patients.slice(0, 5).map(p => ({
+        patients.slice(0, 5).map((p) => ({
           id: p.id,
           name: p.name,
           kana: (p as any).kana || (p as any).name_kana,
@@ -230,12 +230,11 @@ export function AppointmentModal({
         }
         const newPatient = await createPatientViaApi({
           name: newPatientData.name,
-            phone: newPatientData.phone,
+          phone: newPatientData.phone,
           email: newPatientData.email,
-          patient_number: `P${Date.now().toString().slice(-6)}`,
         })
         patientId = newPatient.id
-        setPatients(prev => [newPatient, ...prev])
+        setPatients((prev) => [newPatient, ...prev])
       } else if (!patientId) {
         setError("患者を選択してください")
         setIsSaving(false)
@@ -345,8 +344,8 @@ export function AppointmentModal({
                       onValueChange={setSearchValue}
                       disabled={isSaving}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          // Prevent auto-selection if no item is keyboard-highlighted
+                        if (e.key === "Enter") {
+                          // ハイライト行がない状態で Enter 押しても変な選択が走らないようにする
                           const selectedItem = document.querySelector('[cmdk-item][data-selected="true"]')
                           if (!selectedItem) {
                             e.preventDefault()
@@ -360,10 +359,13 @@ export function AppointmentModal({
 
                       {!searchValue && recentPatients.length > 0 && (
                         <CommandGroup heading="最近来院">
-                          {recentPatients.map(p => (
+                          {recentPatients.map((p) => (
                             <CommandItem
                               key={p.id}
-                              value={p.id!}
+                              // 🔑 ここを「検索に使える文字列」に変更（名前・カナ・電話など）
+                              value={`${p.name} ${(p as any).kana || (p as any).name_kana || ""} ${p.phone || ""} ${
+                                p.patient_number || ""
+                              }`}
                               onSelect={() => {
                                 setFormData({ ...formData, patient_id: p.id })
                                 setOpen(false)
@@ -394,10 +396,13 @@ export function AppointmentModal({
 
                       {searchValue && (
                         <CommandGroup heading="検索結果">
-                          {filteredPatients.map(p => (
+                          {filteredPatients.map((p) => (
                             <CommandItem
                               key={p.id}
-                              value={p.id!}
+                              // 🔑 同じく「中身でフィルタされるように」value を人間が見る情報にする
+                              value={`${p.name} ${(p as any).kana || (p as any).name_kana || ""} ${p.phone || ""} ${
+                                p.patient_number || ""
+                              }`}
                               onSelect={() => {
                                 setFormData({ ...formData, patient_id: p.id })
                                 setOpen(false)
@@ -438,7 +443,7 @@ export function AppointmentModal({
                     id="new-patient-name"
                     placeholder="患者名（漢字）"
                     value={newPatientData.name}
-                    onChange={e => setNewPatientData({ ...newPatientData, name: e.target.value })}
+                    onChange={(e) => setNewPatientData({ ...newPatientData, name: e.target.value })}
                     required
                     disabled={isSaving}
                   />
@@ -449,7 +454,7 @@ export function AppointmentModal({
                     id="new-patient-phone"
                     placeholder="電話番号"
                     value={newPatientData.phone}
-                    onChange={e => setNewPatientData({ ...newPatientData, phone: e.target.value })}
+                    onChange={(e) => setNewPatientData({ ...newPatientData, phone: e.target.value })}
                     required
                     disabled={isSaving}
                   />
@@ -461,7 +466,7 @@ export function AppointmentModal({
                     type="email"
                     placeholder="メールアドレス"
                     value={newPatientData.email}
-                    onChange={e => setNewPatientData({ ...newPatientData, email: e.target.value })}
+                    onChange={(e) => setNewPatientData({ ...newPatientData, email: e.target.value })}
                     disabled={isSaving}
                   />
                 </div>
@@ -477,7 +482,7 @@ export function AppointmentModal({
                 id="date"
                 type="date"
                 value={formData.date}
-                onChange={e => setFormData({ ...formData, date: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                 required
                 disabled={isSaving}
               />
@@ -486,14 +491,14 @@ export function AppointmentModal({
               <Label htmlFor="staff_id">担当者</Label>
               <Select
                 value={formData.staff_id}
-                onValueChange={value => setFormData({ ...formData, staff_id: value })}
+                onValueChange={(value) => setFormData({ ...formData, staff_id: value })}
                 disabled={isSaving}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="担当者を選択" />
                 </SelectTrigger>
                 <SelectContent>
-                  {staff.map(s => (
+                  {staff.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
                     </SelectItem>
@@ -511,7 +516,7 @@ export function AppointmentModal({
                 id="start_time"
                 type="time"
                 value={formData.start_time}
-                onChange={e => setFormData({ ...formData, start_time: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
                 required
                 disabled={isSaving}
               />
@@ -522,7 +527,7 @@ export function AppointmentModal({
                 id="end_time"
                 type="time"
                 value={formData.end_time}
-                onChange={e => setFormData({ ...formData, end_time: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
                 required
                 disabled={isSaving}
               />
@@ -531,14 +536,14 @@ export function AppointmentModal({
               <Label htmlFor="chair_number">チェア番号</Label>
               <Select
                 value={formData.chair_number?.toString()}
-                onValueChange={value => setFormData({ ...formData, chair_number: parseInt(value) })}
+                onValueChange={(value) => setFormData({ ...formData, chair_number: parseInt(value) })}
                 disabled={isSaving}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[1, 2, 3, 4, 5].map(num => (
+                  {[1, 2, 3, 4, 5].map((num) => (
                     <SelectItem key={num} value={num.toString()}>
                       チェア {num}
                     </SelectItem>
@@ -553,7 +558,7 @@ export function AppointmentModal({
             <Label htmlFor="treatment_type">治療内容</Label>
             <Select
               value={formData.treatment_type}
-              onValueChange={value => setFormData({ ...formData, treatment_type: value })}
+              onValueChange={(value) => setFormData({ ...formData, treatment_type: value })}
               disabled={isSaving}
             >
               <SelectTrigger>
@@ -577,7 +582,7 @@ export function AppointmentModal({
             <Label htmlFor="status">ステータス</Label>
             <Select
               value={formData.status}
-              onValueChange={value =>
+              onValueChange={(value) =>
                 setFormData({ ...formData, status: value as CalendarAppointment["status"] })
               }
               disabled={isSaving}
@@ -601,7 +606,7 @@ export function AppointmentModal({
             <Textarea
               id="notes"
               value={formData.notes}
-              onChange={e => setFormData({ ...formData, notes: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={3}
               placeholder="特記事項があれば記入してください"
               disabled={isSaving}
