@@ -116,6 +116,13 @@ export function AppointmentModal({
     setSearchValue("")
   }
 
+  // タップ/クリック選択用: CommandItem の onSelect は Enter キー主体なので、
+  // モバイルでのタップ選択を確実にするため pointer イベントでも処理する
+  const handlePointerSelect = (event: React.PointerEvent, p: Patient) => {
+    event.preventDefault()
+    handleSelectPatient(p)
+  }
+
   // 検索フィルタ
   const filteredPatients = useMemo(() => {
     if (!searchValue) return patients
@@ -376,7 +383,7 @@ export function AppointmentModal({
                                 p.patient_number || ""
                               }`}
                               onSelect={() => handleSelectPatient(p)}
-                              onClick={() => handleSelectPatient(p)}
+                              onPointerDown={(event) => handlePointerSelect(event, p)}
                               className="cursor-pointer"
                             >
                               <Check
@@ -409,7 +416,7 @@ export function AppointmentModal({
                                 p.patient_number || ""
                               }`}
                               onSelect={() => handleSelectPatient(p)}
-                              onClick={() => handleSelectPatient(p)}
+                              onPointerDown={(event) => handlePointerSelect(event, p)}
                               className="cursor-pointer"
                             >
                               <Check
