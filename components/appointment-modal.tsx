@@ -106,6 +106,16 @@ export function AppointmentModal({
     [patients, formData.patient_id],
   )
 
+  // 🔽 行タップ・Enter 選択の共通ハンドラ
+  const handleSelectPatient = (p: Patient) => {
+    setFormData((prev) => ({
+      ...prev,
+      patient_id: p.id,
+    }))
+    setOpen(false)
+    setSearchValue("")
+  }
+
   // 検索フィルタ
   const filteredPatients = useMemo(() => {
     if (!searchValue) return patients
@@ -314,7 +324,7 @@ export function AppointmentModal({
                     role="combobox"
                     aria-haspopup="listbox"
                     aria-expanded={open}
-                    className={cn("w-full justify-between text-left", !selectedPatient && "text-muted-foreground")}
+                    className={cn("w-full justify-between text左", !selectedPatient && "text-muted-foreground")}
                     disabled={isSaving}
                     onClick={() => setTimeout(() => searchRef.current?.focus(), 30)}
                   >
@@ -362,15 +372,11 @@ export function AppointmentModal({
                           {recentPatients.map((p) => (
                             <CommandItem
                               key={p.id}
-                              // 🔑 ここを「検索に使える文字列」に変更（名前・カナ・電話など）
                               value={`${p.name} ${(p as any).kana || (p as any).name_kana || ""} ${p.phone || ""} ${
                                 p.patient_number || ""
                               }`}
-                              onSelect={() => {
-                                setFormData({ ...formData, patient_id: p.id })
-                                setOpen(false)
-                                setSearchValue("")
-                              }}
+                              onSelect={() => handleSelectPatient(p)}
+                              onClick={() => handleSelectPatient(p)}
                               className="cursor-pointer"
                             >
                               <Check
@@ -399,15 +405,11 @@ export function AppointmentModal({
                           {filteredPatients.map((p) => (
                             <CommandItem
                               key={p.id}
-                              // 🔑 同じく「中身でフィルタされるように」value を人間が見る情報にする
                               value={`${p.name} ${(p as any).kana || (p as any).name_kana || ""} ${p.phone || ""} ${
                                 p.patient_number || ""
                               }`}
-                              onSelect={() => {
-                                setFormData({ ...formData, patient_id: p.id })
-                                setOpen(false)
-                                setSearchValue("")
-                              }}
+                              onSelect={() => handleSelectPatient(p)}
+                              onClick={() => handleSelectPatient(p)}
                               className="cursor-pointer"
                             >
                               <Check
