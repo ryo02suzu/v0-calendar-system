@@ -370,15 +370,19 @@ export function AppointmentModal({
                       {!searchValue && recentPatients.length > 0 && (
                         <CommandGroup heading="最近来院">
                           {recentPatients.map((p) => (
-                            <CommandItem
-                              key={p.id}
-                              value={`${p.name} ${(p as any).kana || (p as any).name_kana || ""} ${p.phone || ""} ${
-                                p.patient_number || ""
-                              }`}
-                              onSelect={() => handleSelectPatient(p)}
-                              onClick={() => handleSelectPatient(p)}
-                              className="cursor-pointer"
-                            >
+                          <CommandItem
+                            key={p.id}
+                            value={`${p.name} ${(p as any).kana || (p as any).name_kana || ""} ${p.phone || ""} ${
+                              p.patient_number || ""
+                            }`}
+                            onPointerDown={(e) => {
+                              e.preventDefault()
+                              handleSelectPatient(p)
+                            }}
+                            onSelect={() => handleSelectPatient(p)}
+                            onClick={() => handleSelectPatient(p)}
+                            className="cursor-pointer"
+                          >
                               <Check
                                 className={cn(
                                   "mr-2 h-4 w-4",
@@ -403,15 +407,19 @@ export function AppointmentModal({
                       {searchValue && (
                         <CommandGroup heading="検索結果">
                           {filteredPatients.map((p) => (
-                            <CommandItem
-                              key={p.id}
-                              value={`${p.name} ${(p as any).kana || (p as any).name_kana || ""} ${p.phone || ""} ${
-                                p.patient_number || ""
-                              }`}
-                              onSelect={() => handleSelectPatient(p)}
-                              onClick={() => handleSelectPatient(p)}
-                              className="cursor-pointer"
-                            >
+                          <CommandItem
+                            key={p.id}
+                            value={`${p.name} ${(p as any).kana || (p as any).name_kana || ""} ${p.phone || ""} ${
+                              p.patient_number || ""
+                            }`}
+                            onPointerDown={(e) => {
+                              e.preventDefault()
+                              handleSelectPatient(p)
+                            }}
+                            onSelect={() => handleSelectPatient(p)}
+                            onClick={() => handleSelectPatient(p)}
+                            className="cursor-pointer"
+                          >
                               <Check
                                 className={cn(
                                   "mr-2 h-4 w-4",
