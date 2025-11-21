@@ -24,7 +24,7 @@ const reservationSchema = z.object({
   end_time: z.string().regex(/^\d{2}:\d{2}$/),
   treatment_type: z.string().min(1),
   status: z.enum(["pending", "confirmed", "cancelled", "completed", "no_show"]).optional(),
-  chair_number: z.number().int().positive().optional(),
+  chair_number: z.number().int().positive().nullable().optional(),
   notes: z.string().max(1000).optional(),
 }).refine((data) => Boolean(data.patient_id) || Boolean(data.patient), {
   message: "patient_id または患者情報を指定してください",

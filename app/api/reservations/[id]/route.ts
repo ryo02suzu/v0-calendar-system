@@ -28,7 +28,7 @@ const updateSchema = z
     end_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
     treatment_type: z.string().min(1).optional(),
     status: z.enum(["pending", "confirmed", "cancelled", "completed", "no_show"]).optional(),
-    chair_number: z.number().int().positive().optional(),
+    chair_number: z.number().int().positive().nullable().optional(),
     notes: z.string().max(1000).optional(),
     patient: patientSchema.optional(),
   })
