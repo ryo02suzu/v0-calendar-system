@@ -98,30 +98,23 @@ export async function updateAppointmentRecord(
     date: updates.date ?? current.date,
     start_time: updates.start_time ?? current.start_time,
     end_time: updates.end_time ?? current.end_time,
-  }
-
-  if (
-    updates.date !== undefined ||
-    updates.start_time !== undefined ||
-    updates.end_time !== undefined ||
-    updates.staff_id !== undefined
-  ) {
-    await ensureNoConflict({ ...merged }, id)
+    treatment_type: updates.treatment_type ?? current.treatment_type,
+    status: updates.status ?? current.status,
+    chair_number: updates.chair_number ?? current.chair_number,
+    notes: updates.notes ?? current.notes,
+    updated_at: new Date().toISOString(),
   }
 
   const { data, error } = await supabaseAdmin
     .from("appointments")
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString(),
-    })
+    .update(merged)
     .eq("id", id)
     .eq("clinic_id", CLINIC_ID)
-    .select(appointmentSelect)
+    .select()
     .single()
 
   if (error) {
-    console.error("[v0] Error updating appointment:", error)
+    console.error("[v0] updateAppointmentRecord failed:", error)
     throw error
   }
 
