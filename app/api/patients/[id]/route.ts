@@ -20,7 +20,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: error.issues.map((issue) => issue.message).join(", ") }, { status: 400 })
     }
 
-    console.error("[v0] Failed to update patient:", error)
+    console.error("Failed to update patient:", error)
     return NextResponse.json({ error: "患者情報の更新に失敗しました" }, { status: 500 })
   }
 }

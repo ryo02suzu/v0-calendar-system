@@ -24,8 +24,19 @@ export default function DashboardPage() {
         setIsInitialized(true)
         setError(null)
       } catch (error: any) {
-        console.error("[v0] Failed to initialize clinic:", error)
-        setError(error?.message || "初期化に失敗しました")
+        console.error("Failed to initialize clinic:", error)
+        
+        // Extract a meaningful error message
+        let errorMessage = "初期化に失敗しました"
+        if (error instanceof Error) {
+          errorMessage = error.message
+        } else if (typeof error === "string") {
+          errorMessage = error
+        } else if (error?.message) {
+          errorMessage = error.message
+        }
+        
+        setError(errorMessage)
         setIsInitialized(false)
       }
     }
@@ -44,9 +55,9 @@ export default function DashboardPage() {
               <div className="rounded-md bg-gray-50 p-4 text-sm">
                 <p className="font-medium text-gray-900 mb-2">解決方法：</p>
                 <ol className="list-decimal list-inside space-y-1 text-gray-700">
-                  <li>画面右側のファイルリストから「scripts」フォルダを開く</li>
-                  <li>「001_create_tables.sql」ファイルを見つける</li>
-                  <li>ファイル名の横にある「▶」（実行ボタン）をクリック</li>
+                  <li>環境変数が正しく設定されているか確認（NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY）</li>
+                  <li>Supabase SQLエディタまたはCLIで scripts/001_create_tables.sql を実行</li>
+                  <li>必要に応じて他のマイグレーションスクリプトも実行（002_, 003_）</li>
                   <li>スクリプト実行後、このページをリロード</li>
                 </ol>
               </div>

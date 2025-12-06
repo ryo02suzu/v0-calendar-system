@@ -21,7 +21,7 @@ function decodeBasicToken(authorizationHeader: string | null): { username: strin
       password: decoded.slice(separatorIndex + 1),
     }
   } catch (error) {
-    console.warn("[middleware] Failed to decode Authorization header", error)
+    console.warn("Failed to decode Authorization header:", error)
     return null
   }
 }
@@ -38,8 +38,8 @@ function unauthorizedResponse() {
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  // === IMPORTANT: skip middleware for API routes and next static assets ===
-  // Client-side fetches to /api/* should not be blocked by Basic auth middleware.
+  // Skip middleware for API routes, Next.js internal routes, and static assets
+  // API routes have their own authentication/authorization if needed
   if (pathname.startsWith("/api") || pathname.startsWith("/_next") || pathname === "/favicon.ico") {
     return NextResponse.next()
   }
@@ -47,11 +47,19 @@ export function middleware(request: NextRequest) {
   const requiredUser = process.env.DASHBOARD_BASIC_AUTH_USER
   const requiredPassword = process.env.DASHBOARD_BASIC_AUTH_PASSWORD
 
-  // If credentials are not configured we skip the check to avoid blocking local dev,
-  // but log a warning so operators know the app is running without protection.
+  // In development, allow access without credentials but log a warning
+  // In production, this should be properly configured for security
   if (!requiredUser || !requiredPassword) {
     if (process.env.NODE_ENV === "production") {
-      console.warn("[middleware] Basic auth credentials are not configured. Set DASHBOARD_BASIC_AUTH_USER/PASSWORD.")
+      console.warn(
+        "WARNING: Basic auth credentials (DASHBOARD_BASIC_AUTH_USER/PASSWORD) are not configured in production. " +
+          "The dashboard is publicly accessible!"
+      )
+    } else {
+      console.log(
+        "Note: Basic auth is not configured. Set DASHBOARD_BASIC_AUTH_USER and DASHBOARD_BASIC_AUTH_PASSWORD " +
+          "environment variables to enable authentication."
+      )
     }
     return NextResponse.next()
   }

@@ -2,9 +2,16 @@
 
 import { supabaseAdmin } from "./supabase/admin"
 
+/**
+ * Initializes the database schema by creating all required tables and indexes.
+ * This function is deprecated in favor of running SQL migration scripts directly
+ * via Supabase SQL Editor or the Supabase CLI.
+ * 
+ * For production setup, use scripts/001_create_tables.sql instead.
+ */
 export async function initializeDatabase() {
   try {
-    console.log("[v0] Checking database schema...")
+    console.log("Checking database schema...")
 
     // テーブルが存在するかチェック
     const { data: tables, error: tablesError } = await supabaseAdmin.rpc("pg_tables").select("tablename")
@@ -146,13 +153,13 @@ export async function initializeDatabase() {
       `CREATE INDEX IF NOT EXISTS idx_holidays_clinic ON holidays(clinic_id);`,
     ]
 
-    console.log("[v0] Creating database tables...")
+    console.log("Creating database tables...")
 
     // テーブルを作成
     for (const sql of tablesToCreate) {
       const { error } = await supabaseAdmin.rpc("exec_sql", { sql })
       if (error && !error.message.includes("already exists")) {
-        console.error("[v0] Error creating table:", error)
+        console.error("Error creating table:", error)
       }
     }
 
@@ -160,15 +167,16 @@ export async function initializeDatabase() {
     for (const sql of indexesToCreate) {
       const { error } = await supabaseAdmin.rpc("exec_sql", { sql })
       if (error && !error.message.includes("already exists")) {
-        console.error("[v0] Error creating index:", error)
+        console.error("Error creating index:", error)
       }
     }
 
-    console.log("[v0] Database schema initialized successfully")
+    console.log("Database schema initialized successfully")
     return true
   } catch (error) {
-    console.error("[v0] Error initializing database:", error)
+    console.error("Error initializing database:", error)
     // RPC関数が存在しない場合は、直接SQLを実行する方法を試す
+    // In production, use migration scripts in scripts/ directory instead
     return false
   }
 }

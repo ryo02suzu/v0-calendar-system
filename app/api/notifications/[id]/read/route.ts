@@ -7,7 +7,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const data = await markNotificationRead(id)
     return NextResponse.json({ data })
   } catch (error) {
-    console.error("[v0] Failed to mark notification as read:", error)
+    console.error("Failed to mark notification as read:", error)
     return NextResponse.json({ error: "通知を既読にできませんでした" }, { status: 500 })
   }
 }

@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     const data = await getAppointmentsByDate(date)
     return NextResponse.json({ data: data.map(serializeAppointmentForApi) })
   } catch (error) {
-    console.error("[v0] Failed to fetch reservations:", error)
+    console.error("Failed to fetch reservations:", error)
     return NextResponse.json({ error: "予約データの取得に失敗しました" }, { status: 500 })
   }
 }
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues.map((issue) => issue.message).join(", ") }, { status: 400 })
     }
-    console.error("[v0] Invalid reservation payload:", error)
+    console.error("Invalid reservation payload:", error)
     return NextResponse.json({ error: "不正なリクエストです" }, { status: 400 })
   }
 
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 409 })
     }
 
-    console.error("[v0] Failed to create reservation:", error)
+    console.error("Failed to create reservation:", error)
     return NextResponse.json({ error: "予約の作成に失敗しました" }, { status: 500 })
   }
 }
