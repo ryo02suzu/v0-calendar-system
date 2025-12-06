@@ -10,7 +10,7 @@ export async function GET() {
     const data = await getPatients()
     return NextResponse.json({ data })
   } catch (error) {
-    console.error("[v0] Failed to fetch patients:", error)
+    console.error("Failed to fetch patients:", error)
     return NextResponse.json(
       { error: "患者情報の取得に失敗しました" },
       { status: 500 },
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.error("[v0] Failed to create patient:", error)
+    console.error("Failed to create patient:", error)
     return NextResponse.json(
       { error: "患者の登録に失敗しました" },
       { status: 500 },

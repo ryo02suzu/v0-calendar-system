@@ -18,7 +18,7 @@ export async function getPatients(): Promise<Patient[]> {
     // DB → APP 変換
     return (data || []).map(mapPatientFromDb)
   } catch (error) {
-    console.error("[v0] Error fetching patients:", error)
+    console.error("Error fetching patients:", error)
     return []
   }
 }
@@ -44,7 +44,7 @@ export async function createPatient(patient: Partial<Patient>) {
     // DB → APP 変換して返す
     return mapPatientFromDb(data)
   } catch (error) {
-    console.error("[v0] Error creating patient:", error)
+    console.error("Error creating patient:", error)
     throw error
   }
 }
@@ -70,7 +70,7 @@ export async function updatePatient(id: string, patient: Partial<Patient>) {
     // DB → APP
     return mapPatientFromDb(data)
   } catch (error) {
-    console.error("[v0] Error updating patient:", error)
+    console.error("Error updating patient:", error)
     throw error
   }
 }
@@ -138,7 +138,7 @@ export async function getStaff() {
     if (error) throw error
     return data || []
   } catch (error) {
-    console.error("[v0] Error fetching staff:", error)
+    console.error("Error fetching staff:", error)
     return []
   }
 }
@@ -159,7 +159,7 @@ export async function createStaff(staff: any) {
     if (error) throw error
     return data
   } catch (error) {
-    console.error("[v0] Error creating staff:", error)
+    console.error("Error creating staff:", error)
     throw error
   }
 }
@@ -180,7 +180,7 @@ export async function updateStaff(id: string, staff: any) {
     if (error) throw error
     return data
   } catch (error) {
-    console.error("[v0] Error updating staff:", error)
+    console.error("Error updating staff:", error)
     throw error
   }
 }
@@ -191,7 +191,7 @@ export async function deleteStaff(id: string) {
 
     if (error) throw error
   } catch (error) {
-    console.error("[v0] Error deleting staff:", error)
+    console.error("Error deleting staff:", error)
     throw error
   }
 }
@@ -216,7 +216,7 @@ export async function getMedicalRecords(patientId?: string) {
     const { data, error } = await query
 
     if (error) {
-      console.error("[v0] Error fetching medical records:", error)
+      console.error("Error fetching medical records:", error)
       throw error
     }
 
@@ -229,7 +229,7 @@ export async function getMedicalRecords(patientId?: string) {
 
     return formattedData
   } catch (error) {
-    console.error("[v0] Error fetching medical records:", error)
+    console.error("Error fetching medical records:", error)
     return []
   }
 }
@@ -250,7 +250,7 @@ export async function createMedicalRecord(record: any) {
     if (error) throw error
     return data
   } catch (error) {
-    console.error("[v0] Error creating medical record:", error)
+    console.error("Error creating medical record:", error)
     throw error
   }
 }
@@ -267,7 +267,7 @@ export async function getServices() {
     if (error) throw error
     return data || []
   } catch (error) {
-    console.error("[v0] Error fetching services:", error)
+    console.error("Error fetching services:", error)
     return []
   }
 }
@@ -288,7 +288,7 @@ export async function createService(service: any) {
     if (error) throw error
     return data
   } catch (error) {
-    console.error("[v0] Error creating service:", error)
+    console.error("Error creating service:", error)
     throw error
   }
 }
@@ -309,7 +309,7 @@ export async function updateService(id: string, service: any) {
     if (error) throw error
     return data
   } catch (error) {
-    console.error("[v0] Error updating service:", error)
+    console.error("Error updating service:", error)
     throw error
   }
 }
@@ -320,7 +320,7 @@ export async function deleteService(id: string) {
 
     if (error) throw error
   } catch (error) {
-    console.error("[v0] Error deleting service:", error)
+    console.error("Error deleting service:", error)
     throw error
   }
 }
@@ -337,7 +337,7 @@ export async function getBusinessHours() {
     if (error) throw error
     return data || []
   } catch (error) {
-    console.error("[v0] Error fetching business hours:", error)
+    console.error("Error fetching business hours:", error)
     return []
   }
 }
@@ -360,7 +360,7 @@ export async function updateBusinessHours(hours: any[]) {
     if (error) throw error
     return data
   } catch (error) {
-    console.error("[v0] Error updating business hours:", error)
+    console.error("Error updating business hours:", error)
     throw error
   }
 }
@@ -377,7 +377,7 @@ export async function getHolidays() {
     if (error) throw error
     return data || []
   } catch (error) {
-    console.error("[v0] Error fetching holidays:", error)
+    console.error("Error fetching holidays:", error)
     return []
   }
 }
@@ -397,7 +397,7 @@ export async function createHoliday(holiday: any) {
     if (error) throw error
     return data
   } catch (error) {
-    console.error("[v0] Error creating holiday:", error)
+    console.error("Error creating holiday:", error)
     throw error
   }
 }
@@ -408,7 +408,7 @@ export async function deleteHoliday(id: string) {
 
     if (error) throw error
   } catch (error) {
-    console.error("[v0] Error deleting holiday:", error)
+    console.error("Error deleting holiday:", error)
     throw error
   }
 }
@@ -442,7 +442,7 @@ export async function getClinicSettings() {
 
     return data
   } catch (error) {
-    console.error("[v0] Error fetching clinic settings:", error)
+    console.error("Error fetching clinic settings:", error)
     return null
   }
 }
@@ -462,7 +462,7 @@ export async function updateClinicSettings(settings: any) {
     if (error) throw error
     return data
   } catch (error) {
-    console.error("[v0] Error updating clinic settings:", error)
+    console.error("Error updating clinic settings:", error)
     throw error
   }
 }
@@ -491,7 +491,7 @@ export async function getReseconSettings() {
 
     return data
   } catch (error) {
-    console.error("[v0] Error fetching resecon settings:", error)
+    console.error("Error fetching resecon settings:", error)
     return {
       enabled: false,
       resecon_type: "ORCA",
@@ -542,7 +542,7 @@ export async function updateReseconSettings(settings: any) {
       return data
     }
   } catch (error) {
-    console.error("[v0] Error updating resecon settings:", error)
+    console.error("Error updating resecon settings:", error)
     throw error
   }
 }
@@ -565,7 +565,7 @@ export async function testReseconConnection(apiEndpoint: string, apiKey: string)
 
     return { success: true, message: "接続に成功しました" }
   } catch (error: any) {
-    console.error("[v0] Error testing resecon connection:", error)
+    console.error("Error testing resecon connection:", error)
     return { success: false, message: error.message || "接続に失敗しました" }
   }
 }
@@ -578,7 +578,7 @@ export async function getClinic() {
     if (error) throw error
     return data
   } catch (error) {
-    console.error("[v0] Error fetching clinic:", error)
+    console.error("Error fetching clinic:", error)
     return null
   }
 }
@@ -598,7 +598,7 @@ export async function updateClinic(clinic: any) {
     if (error) throw error
     return data
   } catch (error) {
-    console.error("[v0] Error updating clinic:", error)
+    console.error("Error updating clinic:", error)
     throw error
   }
 }
@@ -611,20 +611,35 @@ export async function initializeClinic() {
       .eq("id", CLINIC_ID)
       .maybeSingle()
 
+    // Handle database table not existing
     if (checkError && checkError.message.includes("does not exist")) {
-      throw new Error("データベーステーブルが存在しません。scripts/001_create_tables.sql を実行してください。")
+      throw new Error(
+        "データベーステーブルが存在しません。Supabase SQLエディタまたはCLIで scripts/001_create_tables.sql を実行してください。"
+      )
     }
 
+    // Handle authentication/connection errors
+    if (checkError && (
+      checkError.message.includes("Invalid API key") ||
+      checkError.message.includes("authentication") ||
+      checkError.message.includes("JWT")
+    )) {
+      throw new Error(
+        "Supabaseへの接続に失敗しました。NEXT_PUBLIC_SUPABASE_URLとSUPABASE_SERVICE_ROLE_KEYの環境変数を確認してください。"
+      )
+    }
+
+    // Only throw on actual errors, not "no rows" results
     if (checkError && checkError.code !== "PGRST116") {
-      throw checkError
+      throw new Error(`データベースエラー: ${checkError.message}`)
     }
 
     if (existingClinic) {
-      console.log("[v0] Clinic already initialized")
+      console.log("Clinic already initialized")
       return existingClinic
     }
 
-    console.log("[v0] Initializing clinic data...")
+    console.log("Initializing clinic data...")
 
     const { data: clinic, error: clinicError } = await supabaseAdmin
       .from("clinics")
@@ -1042,11 +1057,15 @@ export async function initializeClinic() {
       updated_at: new Date().toISOString(),
     })
 
-    console.log("[v0] Clinic initialized successfully with 100+ appointments")
+    console.log("Clinic initialized successfully with 100+ appointments")
     return clinic
   } catch (error) {
-    console.error("[v0] Error initializing clinic:", error)
-    throw error
+    console.error("Error initializing clinic:", error)
+    // Re-throw with a clear message if the error isn't already user-friendly
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error("クリニックの初期化中に予期しないエラーが発生しました")
   }
 }
 
@@ -1063,7 +1082,7 @@ export async function getNotifications(limit: number = 50) {
     if (error) throw error
     return data || []
   } catch (error) {
-    console.error("[v0] Error fetching notifications:", error)
+    console.error("Error fetching notifications:", error)
     return []
   }
 }
@@ -1086,7 +1105,7 @@ export async function markNotificationRead(id: string) {
     if (error) throw error
     return data
   } catch (error) {
-    console.error("[v0] Error marking notification as read:", error)
+    console.error("Error marking notification as read:", error)
     throw error
   }
 }
@@ -1108,7 +1127,7 @@ export async function markAllNotificationsRead() {
     if (error) throw error
     return data || []
   } catch (error) {
-    console.error("[v0] Error marking all notifications as read:", error)
+    console.error("Error marking all notifications as read:", error)
     throw error
   }
 }

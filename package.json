@@ -1,12 +1,14 @@
 {
-  "name": "my-v0-project",
-  "version": "0.1.0",
+  "name": "clinic-calendar-system",
+  "version": "1.0.0",
+  "description": "A production-ready clinic calendar and reservation dashboard",
   "private": true,
   "scripts": {
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start",
+    "db:migrate": "echo 'Run SQL scripts from scripts/ directory in Supabase SQL Editor or use: npx supabase db push'"
   },
   "dependencies": {
     "@hookform/resolvers": "3.10.0",

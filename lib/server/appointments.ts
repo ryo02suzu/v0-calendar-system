@@ -53,7 +53,7 @@ export async function getAppointmentsByDate(date: string): Promise<Appointment[]
     .order("staff_id", { ascending: true })
 
   if (error) {
-    console.error("[v0] Error fetching appointments by date:", error)
+    console.error("Error fetching appointments by date:", error)
     throw error
   }
 
@@ -77,7 +77,7 @@ export async function createAppointmentRecord(input: AppointmentInsertInput): Pr
     .single()
 
   if (error) {
-    console.error("[v0] Error creating appointment:", error)
+    console.error("Error creating appointment:", error)
     throw error
   }
 
@@ -115,7 +115,7 @@ export async function updateAppointmentRecord(
     .single()
 
   if (error) {
-    console.error("[v0] updateAppointmentRecord failed:", error)
+    console.error("updateAppointmentRecord failed:", error)
     throw error
   }
 
@@ -137,7 +137,7 @@ export async function cancelAppointmentRecord(id: string): Promise<Appointment> 
     .single()
 
   if (error) {
-    console.error("[v0] Error cancelling appointment:", error)
+    console.error("Error cancelling appointment:", error)
     throw error
   }
 
@@ -157,7 +157,7 @@ export async function getAppointmentById(id: string): Promise<Appointment | null
     .maybeSingle()
 
   if (error) {
-    console.error("[v0] Error fetching appointment by id:", error)
+    console.error("Error fetching appointment by id:", error)
     throw error
   }
 
@@ -206,7 +206,7 @@ async function checkAppointmentConflict(
   const { data, error } = await query
 
   if (error) {
-    console.error("[v0] Error checking appointment conflict:", error)
+    console.error("Error checking appointment conflict:", error)
     throw error
   }
 

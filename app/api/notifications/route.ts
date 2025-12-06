@@ -6,7 +6,7 @@ export async function GET() {
     const data = await getNotifications(50)
     return NextResponse.json({ data })
   } catch (error) {
-    console.error("[v0] Failed to fetch notifications:", error)
+    console.error("Failed to fetch notifications:", error)
     return NextResponse.json({ error: "通知データの取得に失敗しました" }, { status: 500 })
   }
 }
