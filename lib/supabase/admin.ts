@@ -15,8 +15,12 @@ function validateEnvVars() {
     if (!supabaseUrl) missing.push("NEXT_PUBLIC_SUPABASE_URL")
     if (!serviceRoleKey) missing.push("SUPABASE_SERVICE_ROLE_KEY")
 
-    // During build time, use placeholder values
-    if (process.env.NODE_ENV === 'production' && typeof window === 'undefined') {
+    // During build time (not runtime), use placeholder values
+    // This allows `next build` to succeed on Vercel even without env vars
+    const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || 
+                        (process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.VERCEL_ENV)
+    
+    if (isBuildTime) {
       console.warn(
         `Missing environment variables during build: ${missing.join(", ")}. ` +
         `This is expected during build. Ensure they are set at runtime.`
