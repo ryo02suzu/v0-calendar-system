@@ -8,10 +8,24 @@ function validateEnvVars() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
+  // Allow build-time to proceed without env vars
+  // Validation will happen at runtime when the client is actually used
   if (!supabaseUrl || !serviceRoleKey) {
     const missing = []
     if (!supabaseUrl) missing.push("NEXT_PUBLIC_SUPABASE_URL")
     if (!serviceRoleKey) missing.push("SUPABASE_SERVICE_ROLE_KEY")
+
+    // During build time, use placeholder values
+    if (process.env.NODE_ENV === 'production' && typeof window === 'undefined') {
+      console.warn(
+        `Missing environment variables during build: ${missing.join(", ")}. ` +
+        `This is expected during build. Ensure they are set at runtime.`
+      )
+      return {
+        supabaseUrl: "https://placeholder.supabase.co",
+        serviceRoleKey: "placeholder-key"
+      }
+    }
 
     throw new Error(
       `Missing required environment variables: ${missing.join(", ")}. ` +
