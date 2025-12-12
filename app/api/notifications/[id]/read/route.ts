@@ -5,7 +5,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   try {
     const { id } = params
     
-    if (!id) {
+    if (!id || !id.trim()) {
       return NextResponse.json({ error: "通知IDが必要です" }, { status: 400 })
     }
     
