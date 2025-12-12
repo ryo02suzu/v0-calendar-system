@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { markNotificationRead } from "@/lib/db"
 
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = await params
+    const { id } = params
+    
+    if (!id) {
+      return NextResponse.json({ error: "通知IDが必要です" }, { status: 400 })
+    }
+    
     const data = await markNotificationRead(id)
     return NextResponse.json({ data })
   } catch (error) {
@@ -13,6 +18,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 // Also support POST for flexibility
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   return PATCH(request, { params })
 }
