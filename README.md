@@ -4,12 +4,20 @@ A production-ready clinic calendar and reservation dashboard built with Next.js 
 
 ## Features
 
+### Core Features
 - **📅 Calendar Management**: Visual appointment scheduling with drag-and-drop support
 - **👥 Patient Management**: Complete patient records with medical history
 - **⚕️ Staff Scheduling**: Multi-staff appointment coordination
 - **📊 Reporting**: Analytics and operational insights
 - **🔒 Secure**: HTTP Basic Authentication and Supabase Row Level Security
 - **📱 Responsive**: Works on desktop and mobile devices
+
+### Advanced Features (New)
+- **🔄 Transaction Management**: Atomic operations with automatic rollback for database, calendar, spreadsheet, and notification systems
+- **✅ Zero-Conflict Validation**: Comprehensive booking validation considering business hours, holidays, chair capacity, and staff availability
+- **🏢 SaaS-Ready Architecture**: Multi-tenant support with dynamic clinic context management
+- **🛡️ Enhanced Security**: Rate limiting, CSRF protection, input sanitization, and comprehensive error handling
+- **🔌 Integration Framework**: Extensible interfaces for Google Calendar, Google Sheets, LINE, and other external systems
 
 ## Tech Stack
 
@@ -43,6 +51,7 @@ npm install
    - `scripts/001_create_tables.sql` - Creates all tables and indexes
    - `scripts/002_add_resecon_settings.sql` - Adds integration settings
    - `scripts/003_add_reminder_settings.sql` - Adds reminder configuration
+   - **`scripts/005_add_treatment_type_field.sql` - Fixes schema inconsistency (REQUIRED)**
    - (Optional) `scripts/004_reset_and_seed_data.sql` - Seeds demo data
 
 **Alternative using Supabase CLI:**
@@ -64,6 +73,13 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 # HTTP Basic Authentication (optional for development, required for production)
 DASHBOARD_BASIC_AUTH_USER=admin
 DASHBOARD_BASIC_AUTH_PASSWORD=your-secure-password
+
+# Multi-tenant Support (optional, for SaaS deployments)
+DEFAULT_CLINIC_ID=00000000-0000-0000-0000-000000000001
+REQUIRE_CLINIC_CONTEXT=false
+
+# Security (optional, recommended for production)
+CSRF_SECRET=your-random-secret-change-in-production
 ```
 
 **Important Notes:**
@@ -245,19 +261,105 @@ Initialize or reset the database:
 ```
 ├── app/
 │   ├── api/              # API route handlers
-│   │   ├── reservations/ # Appointment endpoints
+│   │   ├── reservations/ # Appointment endpoints (with rate limiting)
 │   │   ├── patients/     # Patient endpoints
-│   │   └── staff/        # Staff endpoints
+│   │   ├── staff/        # Staff endpoints
+│   │   └── notifications/# Notification endpoints
 │   └── page.tsx          # Main dashboard page
 ├── components/           # React components
 ├── lib/
+│   ├── config/          # Configuration management
+│   │   └── clinic-context.ts  # Multi-tenant clinic context
+│   ├── security/        # Security utilities
+│   │   └── api-security.ts    # Rate limiting, CSRF, validation
+│   ├── transactions/    # Transaction management
+│   │   └── appointment-transaction.ts  # Atomic operations with rollback
+│   ├── validations/     # Validation logic
+│   │   └── appointment-validation.ts   # Zero-conflict validation
 │   ├── supabase/        # Supabase client configuration
 │   ├── server/          # Server-side utilities
+│   │   └── appointments.ts  # Enhanced appointment operations
 │   ├── db.ts            # Database operations
 │   └── types.ts         # TypeScript type definitions
 ├── scripts/             # SQL migration scripts
+│   └── 005_add_treatment_type_field.sql  # Required migration
+├── docs/                # Documentation
+│   ├── AUDIT_AND_REFACTORING_REPORT.md      # Detailed report (Japanese)
+│   └── AUDIT_AND_REFACTORING_SUMMARY_EN.md  # Summary (English)
 └── middleware.ts        # HTTP Basic Auth middleware
 ```
+
+## Advanced Features
+
+### Transaction Management
+
+All appointment operations (create, update, cancel) are executed within transactions that coordinate:
+- **Database operations** with automatic rollback on failure
+- **Calendar integration** (Google Calendar, etc.)
+- **Spreadsheet integration** (Google Sheets, etc.)
+- **Notification systems** (LINE, email, SMS, etc.)
+
+If any step fails, all completed operations are automatically rolled back to maintain consistency.
+
+**Configuration Example**:
+```typescript
+import { setIntegrationConfig } from '@/lib/transactions/appointment-transaction'
+
+setIntegrationConfig({
+  calendar: googleCalendarIntegration,
+  spreadsheet: googleSheetsIntegration,
+  notification: lineNotificationIntegration,
+  failOnIntegrationError: false  // Commit DB even if integrations fail
+})
+```
+
+### Zero-Conflict Validation
+
+Comprehensive validation prevents booking conflicts by checking:
+- ✅ **Business hours**: Appointments only within clinic operating hours
+- ✅ **Holidays**: Automatic rejection of holiday bookings
+- ✅ **Chair capacity**: Respects dental unit/chair count limits
+- ✅ **Staff availability**: Prevents double-booking of staff members
+- ✅ **Advance booking limits**: Configurable maximum booking period
+- ✅ **Race conditions**: Database-level conflict detection
+
+### SaaS-Ready Architecture
+
+The system supports multi-tenant deployments through dynamic clinic context management:
+
+**Single-tenant** (current default):
+```env
+DEFAULT_CLINIC_ID=00000000-0000-0000-0000-000000000001
+```
+
+**Multi-tenant** (future expansion):
+```typescript
+import { setClinicContextConfig } from '@/lib/config/clinic-context'
+
+// Resolve clinic from subdomain
+setClinicContextConfig({
+  resolver: async (request) => {
+    const subdomain = request.headers.get('host').split('.')[0]
+    return await getClinicIdBySubdomain(subdomain)
+  }
+})
+```
+
+### Security Features
+
+- **Rate Limiting**: Configurable per-endpoint request limits
+  - GET: 200 requests/minute
+  - POST: 50 requests/15 minutes
+  - PATCH: 50 requests/15 minutes
+  - DELETE: 30 requests/15 minutes
+- **CSRF Protection**: Token-based protection for state-changing operations
+- **Origin Validation**: Prevents cross-origin attacks
+- **Input Sanitization**: XSS prevention through automatic sanitization
+- **UUID Validation**: Prevents injection attacks
+
+For detailed documentation, see:
+- `docs/AUDIT_AND_REFACTORING_REPORT.md` (Japanese)
+- `docs/AUDIT_AND_REFACTORING_SUMMARY_EN.md` (English)
 
 ## Dependency Management
 

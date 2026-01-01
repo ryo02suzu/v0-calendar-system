@@ -2,6 +2,20 @@ import { CLINIC_ID } from "@/lib/constants"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import type { Appointment } from "@/lib/types"
 import type { ReservationResponse } from "@/types/api"
+import { 
+  validateAppointment, 
+  AppointmentValidationError,
+  type ValidationResult 
+} from "@/lib/validations/appointment-validation"
+import {
+  executeInTransaction,
+  executeDatabaseOperation,
+  executeCalendarOperation,
+  executeSpreadsheetOperation,
+  executeNotificationOperation,
+  getIntegrationConfig,
+  type TransactionContext,
+} from "@/lib/transactions/appointment-transaction"
 
 // NOTE: This file intentionally does not use the "use server" directive even though it
 // only exports server-side utilities. Route Handlers import the error classes defined
@@ -61,27 +75,98 @@ export async function getAppointmentsByDate(date: string): Promise<Appointment[]
 }
 
 export async function createAppointmentRecord(input: AppointmentInsertInput): Promise<Appointment> {
-  await ensureNoConflict({ ...input })
+  // Comprehensive validation including business hours, holidays, and capacity
+  const validationResult = await validateAppointment({
+    clinicId: CLINIC_ID,
+    date: input.date,
+    startTime: input.start_time,
+    endTime: input.end_time,
+    staffId: input.staff_id,
+    chairNumber: input.chair_number,
+  })
 
-  const timestamp = new Date().toISOString()
-  const { data, error } = await supabaseAdmin
-    .from("appointments")
-    .insert({
-      ...input,
-      clinic_id: CLINIC_ID,
-      status: input.status ?? "confirmed",
-      created_at: timestamp,
-      updated_at: timestamp,
-    })
-    .select(appointmentSelect)
-    .single()
-
-  if (error) {
-    console.error("Error creating appointment:", error)
-    throw error
+  if (!validationResult.valid) {
+    throw new AppointmentValidationError(validationResult)
   }
 
-  return formatAppointment(data)
+  // Execute within transaction to ensure consistency across all systems
+  const txResult = await executeInTransaction(async (context: TransactionContext) => {
+    const timestamp = new Date().toISOString()
+    
+    // Database operation
+    const appointment = await executeDatabaseOperation(
+      context,
+      "insert",
+      async () => {
+        const { data, error } = await supabaseAdmin
+          .from("appointments")
+          .insert({
+            ...input,
+            clinic_id: CLINIC_ID,
+            status: input.status ?? "confirmed",
+            created_at: timestamp,
+            updated_at: timestamp,
+          })
+          .select(appointmentSelect)
+          .single()
+
+        if (error) {
+          console.error("Error creating appointment:", error)
+          throw error
+        }
+
+        return formatAppointment(data)
+      }
+    )
+
+    // Calendar integration (if configured)
+    await executeCalendarOperation(
+      context,
+      "create",
+      async () => {
+        const config = getIntegrationConfig()
+        if (config.calendar) {
+          return await config.calendar.createEvent(appointment)
+        }
+        return {}
+      }
+    )
+
+    // Spreadsheet integration (if configured)
+    await executeSpreadsheetOperation(
+      context,
+      "create",
+      async () => {
+        const config = getIntegrationConfig()
+        if (config.spreadsheet) {
+          return await config.spreadsheet.addRow(appointment)
+        }
+        return {}
+      }
+    )
+
+    // Notification integration (if configured)
+    await executeNotificationOperation(
+      context,
+      "sendAppointmentCreated",
+      async () => {
+        const config = getIntegrationConfig()
+        if (config.notification) {
+          return await config.notification.sendAppointmentCreated(appointment)
+        }
+        return {}
+      }
+    )
+
+    return appointment
+  })
+
+  if (!txResult.success) {
+    console.error("Transaction failed:", txResult.errors)
+    throw txResult.errors[0] || new Error("予約の作成に失敗しました")
+  }
+
+  return txResult.data!
 }
 
 export async function updateAppointmentRecord(
@@ -103,49 +188,207 @@ export async function updateAppointmentRecord(
     status: updates.status ?? current.status,
     chair_number: updates.chair_number ?? current.chair_number,
     notes: updates.notes ?? current.notes,
-    updated_at: new Date().toISOString(),
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("appointments")
-    .update(merged)
-    .eq("id", id)
-    .eq("clinic_id", CLINIC_ID)
-    .select()
-    .single()
+  // Validate the merged data if time/date/staff changed
+  const needsValidation = 
+    updates.date !== undefined ||
+    updates.start_time !== undefined ||
+    updates.end_time !== undefined ||
+    updates.staff_id !== undefined
 
-  if (error) {
-    console.error("updateAppointmentRecord failed:", error)
-    throw error
+  if (needsValidation) {
+    const validationResult = await validateAppointment({
+      clinicId: CLINIC_ID,
+      date: merged.date,
+      startTime: merged.start_time,
+      endTime: merged.end_time,
+      staffId: merged.staff_id,
+      chairNumber: merged.chair_number,
+      excludeAppointmentId: id,
+    })
+
+    if (!validationResult.valid) {
+      throw new AppointmentValidationError(validationResult)
+    }
   }
 
-  return formatAppointment(data)
+  // Execute within transaction
+  const txResult = await executeInTransaction(async (context: TransactionContext) => {
+    const timestamp = new Date().toISOString()
+    
+    // Store original for rollback
+    const originalData = { ...current }
+    
+    // Database operation
+    const appointment = await executeDatabaseOperation(
+      context,
+      "update",
+      async () => {
+        const { data, error } = await supabaseAdmin
+          .from("appointments")
+          .update({
+            ...merged,
+            updated_at: timestamp,
+          })
+          .eq("id", id)
+          .eq("clinic_id", CLINIC_ID)
+          .select(appointmentSelect)
+          .single()
+
+        if (error) {
+          console.error("updateAppointmentRecord failed:", error)
+          throw error
+        }
+
+        return formatAppointment(data)
+      },
+      originalData
+    )
+
+    // Calendar integration
+    await executeCalendarOperation(
+      context,
+      "update",
+      async () => {
+        const config = getIntegrationConfig()
+        if (config.calendar) {
+          // Assuming calendar event ID is stored somewhere
+          // For now, we'll just call update with appointment data
+          return await config.calendar.updateEvent(id, appointment)
+        }
+        return {}
+      },
+      originalData
+    )
+
+    // Spreadsheet integration
+    await executeSpreadsheetOperation(
+      context,
+      "update",
+      async () => {
+        const config = getIntegrationConfig()
+        if (config.spreadsheet) {
+          return await config.spreadsheet.updateRow(id, appointment)
+        }
+        return {}
+      },
+      originalData
+    )
+
+    // Notification integration
+    await executeNotificationOperation(
+      context,
+      "sendAppointmentUpdated",
+      async () => {
+        const config = getIntegrationConfig()
+        if (config.notification) {
+          return await config.notification.sendAppointmentUpdated(current, appointment)
+        }
+        return {}
+      }
+    )
+
+    return appointment
+  })
+
+  if (!txResult.success) {
+    console.error("Update transaction failed:", txResult.errors)
+    throw txResult.errors[0] || new Error("予約の更新に失敗しました")
+  }
+
+  return txResult.data!
 }
 
 export async function cancelAppointmentRecord(id: string): Promise<Appointment> {
   // Instead of physically deleting a record we mark it as cancelled so the
   // history stays auditable.
-  const { data, error } = await supabaseAdmin
-    .from("appointments")
-    .update({
-      status: "cancelled",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .eq("clinic_id", CLINIC_ID)
-    .select(appointmentSelect)
-    .single()
-
-  if (error) {
-    console.error("Error cancelling appointment:", error)
-    throw error
-  }
-
-  if (!data) {
+  const current = await getAppointmentById(id)
+  if (!current) {
     throw new AppointmentNotFoundError()
   }
 
-  return formatAppointment(data)
+  // Execute within transaction
+  const txResult = await executeInTransaction(async (context: TransactionContext) => {
+    const timestamp = new Date().toISOString()
+    const originalData = { ...current }
+    
+    // Database operation
+    const appointment = await executeDatabaseOperation(
+      context,
+      "update",
+      async () => {
+        const { data, error } = await supabaseAdmin
+          .from("appointments")
+          .update({
+            status: "cancelled",
+            updated_at: timestamp,
+          })
+          .eq("id", id)
+          .eq("clinic_id", CLINIC_ID)
+          .select(appointmentSelect)
+          .single()
+
+        if (error) {
+          console.error("Error cancelling appointment:", error)
+          throw error
+        }
+
+        return formatAppointment(data)
+      },
+      originalData
+    )
+
+    // Calendar integration
+    await executeCalendarOperation(
+      context,
+      "delete",
+      async () => {
+        const config = getIntegrationConfig()
+        if (config.calendar) {
+          return await config.calendar.deleteEvent(id)
+        }
+        return {}
+      },
+      originalData
+    )
+
+    // Spreadsheet integration
+    await executeSpreadsheetOperation(
+      context,
+      "delete",
+      async () => {
+        const config = getIntegrationConfig()
+        if (config.spreadsheet) {
+          return await config.spreadsheet.deleteRow(id)
+        }
+        return {}
+      },
+      originalData
+    )
+
+    // Notification integration
+    await executeNotificationOperation(
+      context,
+      "sendAppointmentCancelled",
+      async () => {
+        const config = getIntegrationConfig()
+        if (config.notification) {
+          return await config.notification.sendAppointmentCancelled(appointment)
+        }
+        return {}
+      }
+    )
+
+    return appointment
+  })
+
+  if (!txResult.success) {
+    console.error("Cancellation transaction failed:", txResult.errors)
+    throw txResult.errors[0] || new Error("予約のキャンセルに失敗しました")
+  }
+
+  return txResult.data!
 }
 
 export async function getAppointmentById(id: string): Promise<Appointment | null> {
