@@ -9,6 +9,8 @@ import {
   updateAppointmentRecord,
 } from "@/lib/server/appointments"
 import { ensurePatientId } from "@/lib/server/patient"
+import { AppointmentValidationError } from "@/lib/validations/appointment-validation"
+import { applySecurityChecks } from "@/lib/security/api-security"
 
 const patientSchema = z.object({
   name: z.string().min(1, "患者名は必須です"),
@@ -41,6 +43,16 @@ type RouteContext = {
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  // Apply security checks
+  const securityCheck = applySecurityChecks(request, {
+    rateLimit: { maxRequests: 50, windowMs: 15 * 60 * 1000 },
+    validateOrigin: true,
+  })
+  
+  if (!securityCheck.passed) {
+    return NextResponse.json({ error: securityCheck.error }, { status: 429 })
+  }
+
   let payload: z.infer<typeof updateSchema>
   try {
     const json = await request.json()
@@ -71,13 +83,29 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     if (error instanceof AppointmentNotFoundError) {
       return NextResponse.json({ error: error.message }, { status: 404 })
     }
+    if (error instanceof AppointmentValidationError) {
+      return NextResponse.json({ 
+        error: error.message,
+        validationErrors: error.validationResult.errors,
+      }, { status: 400 })
+    }
 
     console.error("Failed to update reservation:", error)
     return NextResponse.json({ error: "予約の更新に失敗しました" }, { status: 500 })
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: RouteContext) {
+export async function DELETE(request: NextRequest, { params }: RouteContext) {
+  // Apply security checks
+  const securityCheck = applySecurityChecks(request, {
+    rateLimit: { maxRequests: 30, windowMs: 15 * 60 * 1000 },
+    validateOrigin: true,
+  })
+  
+  if (!securityCheck.passed) {
+    return NextResponse.json({ error: securityCheck.error }, { status: 429 })
+  }
+
   try {
     const data = await cancelAppointmentRecord(params.id)
     return NextResponse.json({ data: serializeAppointmentForApi(data) })

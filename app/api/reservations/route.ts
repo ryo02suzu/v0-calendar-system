@@ -8,6 +8,8 @@ import {
   serializeAppointmentForApi,
 } from "@/lib/server/appointments"
 import { ensurePatientId } from "@/lib/server/patient"
+import { AppointmentValidationError } from "@/lib/validations/appointment-validation"
+import { applySecurityChecks } from "@/lib/security/api-security"
 
 const patientSchema = z.object({
   name: z.string().min(1, "患者名は必須です"),
@@ -32,6 +34,18 @@ const reservationSchema = z.object({
 })
 
 export async function GET(request: NextRequest) {
+  // Apply rate limiting
+  const securityCheck = applySecurityChecks(request, {
+    rateLimit: { maxRequests: 200, windowMs: 60 * 1000 }, // 200 requests per minute
+  })
+  
+  if (!securityCheck.passed) {
+    return NextResponse.json(
+      { error: securityCheck.error },
+      { status: 429 }
+    )
+  }
+
   const date = new URL(request.url).searchParams.get("date")
   if (!date) {
     return NextResponse.json({ error: "date (YYYY-MM-DD) is required" }, { status: 400 })
@@ -47,6 +61,26 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // Apply security checks including rate limiting
+  const securityCheck = applySecurityChecks(request, {
+    rateLimit: { maxRequests: 50, windowMs: 15 * 60 * 1000 }, // 50 requests per 15 minutes
+    validateOrigin: true,
+  })
+  
+  if (!securityCheck.passed) {
+    return NextResponse.json(
+      { error: securityCheck.error },
+      { 
+        status: securityCheck.error?.includes("Too many") ? 429 : 403,
+        headers: securityCheck.rateLimitInfo ? {
+          "X-RateLimit-Limit": String(securityCheck.rateLimitInfo.remaining + 1),
+          "X-RateLimit-Remaining": String(securityCheck.rateLimitInfo.remaining),
+          "X-RateLimit-Reset": new Date(securityCheck.rateLimitInfo.resetTime).toISOString(),
+        } : undefined,
+      }
+    )
+  }
+
   let payload: z.infer<typeof reservationSchema>
   try {
     const json = await request.json()
@@ -76,6 +110,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof AppointmentConflictError) {
       return NextResponse.json({ error: error.message }, { status: 409 })
+    }
+    
+    if (error instanceof AppointmentValidationError) {
+      return NextResponse.json({ 
+        error: error.message,
+        validationErrors: error.validationResult.errors,
+      }, { status: 400 })
     }
 
     console.error("Failed to create reservation:", error)
