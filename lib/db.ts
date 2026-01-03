@@ -545,6 +545,21 @@ export async function updateAppointment(id: string, appointment: any) {
   }
 }
 
+export async function deleteAppointment(id: string) {
+  try {
+    const { error } = await supabaseAdmin
+      .from("appointments")
+      .delete()
+      .eq("id", id)
+      .eq("clinic_id", CLINIC_ID)
+
+    if (error) throw error
+  } catch (error) {
+    console.error("Error deleting appointment:", error)
+    throw error
+  }
+}
+
 // クリニック設定
 export async function getClinicSettings() {
   try {

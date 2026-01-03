@@ -9,7 +9,7 @@ interface UnitSchedulerViewProps {
   currentDate: Date
   appointments: Appointment[]
   onAppointmentClick: (appointment: Appointment) => void
-  onEmptySlotClick?: (date: Date, time: string, staffId: string) => void
+  onSlotClick?: (date: string, time: string, unitId?: string) => void
 }
 
 const UNITS = [
@@ -27,7 +27,7 @@ export default function UnitSchedulerView({
   currentDate,
   appointments,
   onAppointmentClick,
-  onEmptySlotClick,
+  onSlotClick,
 }: UnitSchedulerViewProps) {
   const [currentTime, setCurrentTime] = useState(new Date())
 
@@ -115,8 +115,9 @@ export default function UnitSchedulerView({
                       key={unit.id}
                       className="min-h-[80px] p-2 border-r border-gray-100 last:border-r-0 hover:bg-blue-50 transition-colors cursor-pointer relative"
                       onClick={() => {
-                        if (cellAppointments.length === 0 && onEmptySlotClick) {
-                          onEmptySlotClick(currentDate, timeSlot, unit.id)
+                        if (cellAppointments.length === 0 && onSlotClick) {
+                          const dateString = currentDate.toISOString().split("T")[0]
+                          onSlotClick(dateString, timeSlot, unit.id)
                         }
                       }}
                     >
@@ -153,3 +154,5 @@ export default function UnitSchedulerView({
     </div>
   )
 }
+
+export { UnitSchedulerView }

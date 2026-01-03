@@ -13,8 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { AlertCircle, Check, ChevronsUpDown, UserPlus } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { Patient, Staff } from "@/lib/types"
-import type { CalendarAppointment } from "@/types/api"
+import type { Patient, Staff, Appointment } from "@/lib/types"
 
 /*
   改善点:
@@ -28,9 +27,9 @@ import type { CalendarAppointment } from "@/types/api"
 interface AppointmentModalProps {
   isOpen: boolean
   onClose: () => void
-  appointment: CalendarAppointment | null
+  appointment: Appointment | null
   staff: Staff[]
-  onSave: (appointment: CalendarAppointment) => Promise<void>
+  onSave: (appointment: Appointment) => Promise<void>
   onDelete: (id: string) => void
   initialSlotData?: { date: string; time: string; staffId?: string } | null
   debugSearch?: boolean // true にするとゼロ件時に console に候補出力
@@ -79,7 +78,7 @@ export function AppointmentModal({
 }: AppointmentModalProps) {
   const getCurrentDate = () => new Date().toISOString().split("T")[0]
 
-  const [formData, setFormData] = useState<Partial<CalendarAppointment>>({
+  const [formData, setFormData] = useState<Partial<Appointment>>({
     date: getCurrentDate(),
     start_time: "09:00",
     end_time: "10:00",
@@ -257,7 +256,7 @@ export function AppointmentModal({
         id: appointment?.id || crypto.randomUUID(),
         patient_id: patientId!,
         staff_id: formData.staff_id!,
-      } as CalendarAppointment)
+      } as Appointment)
 
       onClose()
     } catch (err: any) {
@@ -593,7 +592,7 @@ export function AppointmentModal({
             <Select
               value={formData.status}
               onValueChange={(value) =>
-                setFormData({ ...formData, status: value as CalendarAppointment["status"] })
+                setFormData({ ...formData, status: value as Appointment["status"] })
               }
               disabled={isSaving}
             >

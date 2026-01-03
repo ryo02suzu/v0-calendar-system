@@ -1,48 +1,53 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import CalendarToolbar from "@/components/calendar-toolbar"
-import { WeekView } from "@/components/week-view"
-import { DayView } from "@/components/day-view"
+import { CalendarToolbar } from "@/components/calendar-toolbar"
+import { UnitSchedulerView } from "@/components/unit-scheduler-view"
 import { MonthView } from "@/components/month-view"
-import UnitSchedulerView from "@/components/unit-scheduler-view"
 import { AppointmentModal } from "@/components/appointment-modal"
-import type { Staff, Appointment } from "@/lib/types"
-import type { CalendarAppointment, ReservationCreatePayload, ReservationUpdatePayload } from "@/types/api"
+import { WeekView } from "@/components/week-view"
+import type { Appointment, Staff, Holiday, BusinessHours } from "@/lib/types"
+import {
+  getAppointments,
+  getStaff,
+  createAppointment,
+  updateAppointment,
+  deleteAppointment,
+  getHolidays,
+  getBusinessHours,
+} from "@/lib/db"
 import { useToast } from "@/hooks/use-toast"
 
 export function CalendarView() {
-  const [viewMode, setViewMode] = useState<"day" | "week" | "month">("week")
+  const [viewMode, setViewMode] = useState<"day" | "week" | "month">("day")
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [appointments, setAppointments] = useState<CalendarAppointment[]>([])
+  const [appointments, setAppointments] = useState<Appointment[]>([])
   const [staff, setStaff] = useState<Staff[]>([])
-  const [selectedAppointment, setSelectedAppointment] = useState<CalendarAppointment | null>(null)
+  const [holidays, setHolidays] = useState<Holiday[]>([])
+  const [businessHours, setBusinessHours] = useState<BusinessHours[]>([])
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [initialSlotData, setInitialSlotData] = useState<{ date: string; time: string; staffId?: string } | null>(null)
   const { toast } = useToast()
 
-  const loadData = async (date: Date) => {
+  useEffect(() => {
+    loadData()
+  }, [currentDate])
+
+  const loadData = async () => {
     setIsLoading(true)
     try {
-      const dateString = date.toISOString().split("T")[0]
-      const [appointmentsResponse, staffResponse] = await Promise.all([
-        fetch(`/api/reservations?date=${dateString}`, { cache: "no-store" }),
-        fetch("/api/staff", { cache: "no-store" }),
+      const [appointmentsData, staffData, holidaysData, businessHoursData] = await Promise.all([
+        getAppointments(),
+        getStaff(),
+        getHolidays(),
+        getBusinessHours(),
       ])
-
-      const appointmentsJson: { data?: CalendarAppointment[]; error?: string } = await appointmentsResponse.json()
-      const staffJson = await staffResponse.json()
-
-      if (!appointmentsResponse.ok) {
-        throw new Error(appointmentsJson.error || "予約データの取得に失敗しました")
-      }
-      if (!staffResponse.ok) {
-        throw new Error(staffJson.error || "スタッフ情報の取得に失敗しました")
-      }
-
-      setAppointments(appointmentsJson.data || [])
-      setStaff(staffJson.data || [])
+      setAppointments(appointmentsData)
+      setStaff(staffData)
+      setHolidays(holidaysData)
+      setBusinessHours(businessHoursData)
     } catch (error) {
       console.error("[v0] Error loading data:", error)
       toast({
@@ -55,79 +60,41 @@ export function CalendarView() {
     }
   }
 
-  useEffect(() => {
-    loadData(currentDate)
-  }, [currentDate])
-
   const handleCreateAppointment = () => {
-    // Toolbar "新規予約" - clear initial slot data to ensure clean default modal
     setSelectedAppointment(null)
     setInitialSlotData(null)
     setIsModalOpen(true)
   }
 
-  const handleEditAppointment = (appointment: CalendarAppointment) => {
-    // Edit existing appointment - no slot prefill
+  const handleSlotClick = (date: string, time: string, unitId?: string) => {
+    setSelectedAppointment(null)
+    const chairNumber = unitId?.includes("unit-") ? unitId.split("-")[1] : undefined
+    setInitialSlotData({ date, time, staffId: chairNumber })
+    setIsModalOpen(true)
+  }
+
+  const handleEditAppointment = (appointment: Appointment) => {
     setSelectedAppointment(appointment)
     setInitialSlotData(null)
     setIsModalOpen(true)
   }
 
-  const handleEmptyCellClick = ({ date, hour, staffId }: { date: Date; hour: number; staffId: string }) => {
-    // Empty cell click - prefill date, time, and staff
-    const dateString = date.toISOString().split("T")[0] // Convert Date to string
-    const timeString = `${String(hour).padStart(2, "0")}:00`
-    setSelectedAppointment(null)
-    setInitialSlotData({ date: dateString, time: timeString, staffId })
-    setIsModalOpen(true)
-  }
-
-  const handleEmptySlotClick = (date: Date, time: string, staffId: string) => {
-    // Empty slot click from UnitSchedulerView - prefill date, time, and staff
-    const dateString = date.toISOString().split("T")[0]
-    setSelectedAppointment(null)
-    setInitialSlotData({ date: dateString, time, staffId })
-    setIsModalOpen(true)
-  }
-
-  const handleDateClick = (date: Date) => {
-    // When date is clicked in week or month view, switch to day view
-    setCurrentDate(date)
-    setViewMode("day")
-  }
-
-  const handleSaveAppointment = async (appointment: CalendarAppointment) => {
+  const handleSaveAppointment = async (appointment: Appointment) => {
     try {
-      if (!appointment.patient_id || !appointment.staff_id) {
-        throw new Error("患者と担当者を選択してください")
-      }
-
-      const basePayload = {
-        patient_id: appointment.patient_id,
-        staff_id: appointment.staff_id,
-        date: appointment.date,
-        start_time: appointment.start_time,
-        end_time: appointment.end_time,
-        treatment_type: appointment.treatment_type,
-        status: appointment.status,
-        chair_number: appointment.chair_number,
-        notes: appointment.notes,
-      }
-
       if (selectedAppointment) {
-        await mutateReservation(`/api/reservations/${appointment.id}`, "PATCH", basePayload)
+        await updateAppointment(appointment.id, appointment)
         toast({
           title: "保存完了",
           description: "予約を更新しました",
         })
       } else {
-        await mutateReservation(`/api/reservations`, "POST", basePayload as ReservationCreatePayload)
+        await createAppointment(appointment)
         toast({
           title: "保存完了",
           description: "予約を作成しました",
         })
       }
-      await loadData(currentDate)
+      await loadData()
       setIsModalOpen(false)
     } catch (error: any) {
       console.error("[v0] Error saving appointment:", error)
@@ -142,21 +109,12 @@ export function CalendarView() {
 
   const handleDeleteAppointment = async (id: string) => {
     try {
-      const response = await fetch(`/api/reservations/${id}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || "予約の削除に失敗しました")
-      }
-
+      await deleteAppointment(id)
       toast({
         title: "削除完了",
         description: "予約を削除しました",
       })
-      await loadData(currentDate)
+      await loadData()
       setIsModalOpen(false)
     } catch (error) {
       console.error("[v0] Error deleting appointment:", error)
@@ -168,63 +126,66 @@ export function CalendarView() {
     }
   }
 
+  const handleDayClick = (date: Date) => {
+    setCurrentDate(date)
+    setViewMode("day")
+  }
+
   if (isLoading) {
     return (
-      <div className="h-full flex items-center justify-center bg-white">
+      <div className="h-full flex items-center justify-center bg-background">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">読み込み中...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">読み込み中...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-background">
       <CalendarToolbar
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         currentDate={currentDate}
         onDateChange={setCurrentDate}
-        onNewAppointment={handleCreateAppointment}
+        onCreateAppointment={handleCreateAppointment}
       />
 
       <div className="flex-1 overflow-auto">
+        {viewMode === "day" && (
+          <UnitSchedulerView
+            currentDate={currentDate}
+            appointments={appointments}
+            onAppointmentClick={handleEditAppointment}
+            onSlotClick={handleSlotClick}
+          />
+        )}
         {viewMode === "week" && (
           <WeekView
             currentDate={currentDate}
             appointments={appointments}
-            staff={staff}
             onAppointmentClick={handleEditAppointment}
-            onEmptyCellClick={handleEmptyCellClick}
-            onDateClick={handleDateClick}
-          />
-        )}
-        {viewMode === "day" && (
-          <UnitSchedulerView
-            currentDate={currentDate}
-            appointments={appointments as Appointment[]}
-            onAppointmentClick={handleEditAppointment}
-            onEmptySlotClick={handleEmptySlotClick}
+            onDayClick={handleDayClick}
+            holidays={holidays}
+            businessHours={businessHours}
           />
         )}
         {viewMode === "month" && (
-          <MonthView 
-            currentDate={currentDate} 
-            appointments={appointments} 
+          <MonthView
+            currentDate={currentDate}
+            appointments={appointments}
             onAppointmentClick={handleEditAppointment}
-            onDateClick={handleDateClick}
+            onDayClick={handleDayClick}
+            holidays={holidays}
+            businessHours={businessHours}
           />
         )}
       </div>
 
       <AppointmentModal
         isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false)
-          // Reset initial slot data on modal close
-          setInitialSlotData(null)
-        }}
+        onClose={() => setIsModalOpen(false)}
         appointment={selectedAppointment}
         staff={staff}
         onSave={handleSaveAppointment}
@@ -233,21 +194,4 @@ export function CalendarView() {
       />
     </div>
   )
-}
-
-async function mutateReservation(
-  url: string,
-  method: "POST" | "PATCH",
-  payload: ReservationCreatePayload | ReservationUpdatePayload,
-) {
-  const response = await fetch(url, {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  })
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || "予約の保存に失敗しました")
-  }
 }
