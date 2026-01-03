@@ -27,8 +27,8 @@ export default function ProfilePage() {
         throw new Error(data.error || "プロフィール情報の取得に失敗しました")
       }
 
-      // 仮: 最初のスタッフを現在のユーザーとして扱う
-      // 実際にはSupabase Authのユーザー情報と照合
+      // TODO: Supabase Authのユーザー情報と照合して適切なスタッフを特定する
+      // 現在は仮実装として最初のスタッフを使用
       const currentStaff = data.data?.[0]
       setStaff(currentStaff)
     } catch (err: any) {

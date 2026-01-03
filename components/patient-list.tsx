@@ -197,13 +197,14 @@ export function PatientList() {
         description: `患者「${patient.name}」を削除しました`,
       })
       
+      // router.refresh() でページ全体が再検証され、患者リストも更新される
       router.refresh()
-      await loadPatients()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[v0] Error deleting patient:", error)
+      const errorMessage = error instanceof Error ? error.message : "患者の削除に失敗しました"
       toast({
         title: "エラー",
-        description: error?.message || "患者の削除に失敗しました",
+        description: errorMessage,
         variant: "destructive",
       })
     }
