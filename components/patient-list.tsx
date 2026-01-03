@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Search, Plus, Phone, Mail } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Search, Plus, Phone, Mail, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -9,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/hooks/use-toast"
 import type { Patient } from "@/lib/types"
 
 type PatientFormState = {
@@ -38,6 +40,8 @@ export function PatientList() {
     address: "",
     medical_notes: "",
   })
+  const { toast } = useToast()
+  const router = useRouter()
 
   // Highlight utility: wraps first match in <mark>
   function highlightText(text: string, query: string): React.ReactNode {
@@ -173,6 +177,38 @@ export function PatientList() {
     }
   }
 
+  async function handleDeletePatient(patient: Patient) {
+    if (!window.confirm(`患者「${patient.name}」を削除してもよろしいですか？\n\nこの操作は取り消せません。`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/patients/${patient.id}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "患者の削除に失敗しました")
+      }
+
+      toast({
+        title: "削除完了",
+        description: `患者「${patient.name}」を削除しました`,
+      })
+      
+      router.refresh()
+      await loadPatients()
+    } catch (error: any) {
+      console.error("[v0] Error deleting patient:", error)
+      toast({
+        title: "エラー",
+        description: error?.message || "患者の削除に失敗しました",
+        variant: "destructive",
+      })
+    }
+  }
+
   const filteredPatients = useMemo(() => {
     const q = (searchTerm || "").trim().toLowerCase()
     if (!q) return patients
@@ -233,7 +269,7 @@ export function PatientList() {
               <TableHead>電話番号</TableHead>
               <TableHead>メール</TableHead>
               <TableHead>登録日</TableHead>
-              <TableHead>操作</TableHead>
+              <TableHead className="text-right">操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -270,10 +306,19 @@ export function PatientList() {
                     </div>
                   </TableCell>
                   <TableCell>{patient.created_at ? patient.created_at.split("T")[0] : "-"}</TableCell>
-                  <TableCell>
-                    <Button variant="outline" size="sm" onClick={() => openDialog(patient)}>
-                      編集
-                    </Button>
+                  <TableCell className="text-right">
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline" size="sm" onClick={() => openDialog(patient)}>
+                        編集
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeletePatient(patient)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
