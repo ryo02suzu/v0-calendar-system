@@ -357,8 +357,29 @@ export async function getBusinessHours() {
   }
 }
 
-export async function updateBusinessHours(hours: any[]) {
+export async function updateBusinessHours(hoursOrId: any[] | string, singleHour?: any) {
   try {
+    // If first parameter is a string (id), update a single record
+    if (typeof hoursOrId === "string" && singleHour) {
+      const id = hoursOrId
+      const { data, error } = await supabaseAdmin
+        .from("business_hours")
+        .update({
+          ...singleHour,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .eq("clinic_id", CLINIC_ID)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    }
+
+    // Otherwise, treat as array (existing behavior)
+    const hours = hoursOrId as any[]
+    
     // 既存のデータを削除
     await supabaseAdmin.from("business_hours").delete().eq("clinic_id", CLINIC_ID)
 
@@ -424,6 +445,102 @@ export async function deleteHoliday(id: string) {
     if (error) throw error
   } catch (error) {
     console.error("Error deleting holiday:", error)
+    throw error
+  }
+}
+
+// 予約関連
+export async function getAppointments() {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("appointments")
+      .select(`
+        *,
+        patient:patients(*),
+        staff:staff(*),
+        service:services(*)
+      `)
+      .eq("clinic_id", CLINIC_ID)
+      .order("date", { ascending: true })
+      .order("start_time", { ascending: true })
+
+    if (error) throw error
+
+    // Format the data to match the Appointment interface
+    const formattedData = (data || []).map((apt) => ({
+      ...apt,
+      patient: apt.patient ? mapPatientFromDb(apt.patient) : undefined,
+    }))
+
+    return formattedData
+  } catch (error) {
+    console.error("Error fetching appointments:", error)
+    return []
+  }
+}
+
+export async function createAppointment(appointment: any) {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("appointments")
+      .insert({
+        ...appointment,
+        clinic_id: CLINIC_ID,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select(`
+        *,
+        patient:patients(*),
+        staff:staff(*),
+        service:services(*)
+      `)
+      .single()
+
+    if (error) throw error
+
+    // Format the data to match the Appointment interface
+    const formattedData = {
+      ...data,
+      patient: data.patient ? mapPatientFromDb(data.patient) : undefined,
+    }
+
+    return formattedData
+  } catch (error) {
+    console.error("Error creating appointment:", error)
+    throw error
+  }
+}
+
+export async function updateAppointment(id: string, appointment: any) {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("appointments")
+      .update({
+        ...appointment,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .eq("clinic_id", CLINIC_ID)
+      .select(`
+        *,
+        patient:patients(*),
+        staff:staff(*),
+        service:services(*)
+      `)
+      .single()
+
+    if (error) throw error
+
+    // Format the data to match the Appointment interface
+    const formattedData = {
+      ...data,
+      patient: data.patient ? mapPatientFromDb(data.patient) : undefined,
+    }
+
+    return formattedData
+  } catch (error) {
+    console.error("Error updating appointment:", error)
     throw error
   }
 }
