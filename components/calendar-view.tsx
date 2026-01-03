@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { CalendarToolbar } from "@/components/calendar-toolbar"
+import CalendarToolbar from "@/components/calendar-toolbar"
 import { WeekView } from "@/components/week-view"
 import { DayView } from "@/components/day-view"
 import { MonthView } from "@/components/month-view"
@@ -186,7 +186,7 @@ export function CalendarView() {
         onViewModeChange={setViewMode}
         currentDate={currentDate}
         onDateChange={setCurrentDate}
-        onCreateAppointment={handleCreateAppointment}
+        onNewAppointment={handleCreateAppointment}
       />
 
       <div className="flex-1 overflow-auto">
