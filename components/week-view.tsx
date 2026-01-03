@@ -2,6 +2,7 @@
 
 import { format, startOfWeek, addDays, isSameDay, parseISO } from "date-fns"
 import { ja } from "date-fns/locale"
+import { Sun, Sunset } from "lucide-react"
 import type { Staff } from "@/lib/types"
 import type { CalendarAppointment } from "@/types/api"
 
@@ -11,9 +12,10 @@ interface WeekViewProps {
   staff: Staff[]
   onAppointmentClick: (appointment: CalendarAppointment) => void
   onEmptyCellClick?: (args: { date: Date; hour: number; staffId: string }) => void
+  onDateClick?: (date: Date) => void
 }
 
-export function WeekView({ currentDate, appointments, staff, onAppointmentClick, onEmptyCellClick }: WeekViewProps) {
+export function WeekView({ currentDate, appointments, staff, onAppointmentClick, onEmptyCellClick, onDateClick }: WeekViewProps) {
   const weekStart = startOfWeek(currentDate, { locale: ja })
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
   const hours = Array.from({ length: 11 }, (_, i) => i + 9) // 9:00 - 19:00
@@ -30,6 +32,20 @@ export function WeekView({ currentDate, appointments, staff, onAppointmentClick,
       const aptHour = Number.parseInt(apt.start_time.split(":")[0])
       return isSameDay(aptDate, date) && apt.staff_id === staffId && aptHour === hour
     })
+  }
+
+  const getAppointmentsForDay = (date: Date) => {
+    return appointments.filter((apt) => isSameDay(parseISO(apt.date), date))
+  }
+
+  const getMorningCount = (date: Date) => {
+    const dayAppts = getAppointmentsForDay(date)
+    return dayAppts.filter((apt) => parseInt(apt.start_time.split(":")[0]) < 13).length
+  }
+
+  const getAfternoonCount = (date: Date) => {
+    const dayAppts = getAppointmentsForDay(date)
+    return dayAppts.filter((apt) => parseInt(apt.start_time.split(":")[0]) >= 13).length
   }
 
   const getTreatmentColor = (type: string) => {
@@ -50,12 +66,30 @@ export function WeekView({ currentDate, appointments, staff, onAppointmentClick,
         <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
           <div className="grid grid-cols-8">
             <div className="p-2 border-r border-gray-200 bg-gray-50" />
-            {weekDays.map((day, i) => (
-              <div key={i} className="p-2 text-center border-r border-gray-200 bg-gray-50">
-                <div className="text-sm font-medium">{format(day, "E", { locale: ja })}</div>
-                <div className="text-lg font-bold">{format(day, "d", { locale: ja })}</div>
-              </div>
-            ))}
+            {weekDays.map((day, i) => {
+              const morningCount = getMorningCount(day)
+              const afternoonCount = getAfternoonCount(day)
+              return (
+                <div 
+                  key={i} 
+                  className="p-2 text-center border-r border-gray-200 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={() => onDateClick?.(day)}
+                >
+                  <div className="text-sm font-medium">{format(day, "E", { locale: ja })}</div>
+                  <div className="text-lg font-bold">{format(day, "d", { locale: ja })}</div>
+                  <div className="flex items-center justify-center gap-2 mt-1 text-xs">
+                    <div className="flex items-center gap-1 text-amber-600">
+                      <Sun className="w-3 h-3" />
+                      <span>{morningCount}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-indigo-600">
+                      <Sunset className="w-3 h-3" />
+                      <span>{afternoonCount}</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
 

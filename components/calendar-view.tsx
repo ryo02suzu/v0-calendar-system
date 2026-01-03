@@ -5,8 +5,9 @@ import { CalendarToolbar } from "@/components/calendar-toolbar"
 import { WeekView } from "@/components/week-view"
 import { DayView } from "@/components/day-view"
 import { MonthView } from "@/components/month-view"
+import UnitSchedulerView from "@/components/unit-scheduler-view"
 import { AppointmentModal } from "@/components/appointment-modal"
-import type { Staff } from "@/lib/types"
+import type { Staff, Appointment } from "@/lib/types"
 import type { CalendarAppointment, ReservationCreatePayload, ReservationUpdatePayload } from "@/types/api"
 import { useToast } from "@/hooks/use-toast"
 
@@ -79,6 +80,20 @@ export function CalendarView() {
     setSelectedAppointment(null)
     setInitialSlotData({ date: dateString, time: timeString, staffId })
     setIsModalOpen(true)
+  }
+
+  const handleEmptySlotClick = (date: Date, time: string, staffId: string) => {
+    // Empty slot click from UnitSchedulerView - prefill date, time, and staff
+    const dateString = date.toISOString().split("T")[0]
+    setSelectedAppointment(null)
+    setInitialSlotData({ date: dateString, time, staffId })
+    setIsModalOpen(true)
+  }
+
+  const handleDateClick = (date: Date) => {
+    // When date is clicked in week or month view, switch to day view
+    setCurrentDate(date)
+    setViewMode("day")
   }
 
   const handleSaveAppointment = async (appointment: CalendarAppointment) => {
@@ -182,19 +197,24 @@ export function CalendarView() {
             staff={staff}
             onAppointmentClick={handleEditAppointment}
             onEmptyCellClick={handleEmptyCellClick}
+            onDateClick={handleDateClick}
           />
         )}
         {viewMode === "day" && (
-          <DayView
+          <UnitSchedulerView
             currentDate={currentDate}
-            appointments={appointments}
-            staff={staff}
+            appointments={appointments as Appointment[]}
             onAppointmentClick={handleEditAppointment}
-            onEmptyCellClick={handleEmptyCellClick}
+            onEmptySlotClick={handleEmptySlotClick}
           />
         )}
         {viewMode === "month" && (
-          <MonthView currentDate={currentDate} appointments={appointments} onAppointmentClick={handleEditAppointment} />
+          <MonthView 
+            currentDate={currentDate} 
+            appointments={appointments} 
+            onAppointmentClick={handleEditAppointment}
+            onDateClick={handleDateClick}
+          />
         )}
       </div>
 
