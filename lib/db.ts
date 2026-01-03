@@ -75,6 +75,21 @@ export async function updatePatient(id: string, patient: Partial<Patient>) {
   }
 }
 
+export async function deletePatient(id: string) {
+  try {
+    const { error } = await supabaseAdmin
+      .from("patients")
+      .delete()
+      .eq("id", id)
+      .eq("clinic_id", CLINIC_ID)
+
+    if (error) throw error
+  } catch (error) {
+    console.error("Error deleting patient:", error)
+    throw error
+  }
+}
+
 /*
  * UI → DB のキー変換
  */

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Bell, Settings, User, Search, X } from "lucide-react"
+import { Bell, User, Search, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -24,11 +24,9 @@ export function Header() {
   const [searchQuery, setSearchQuery] = useState("")
   const [isComposing, setIsComposing] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
-  const [showUserMenu, setShowUserMenu] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
-  const userRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
@@ -57,9 +55,6 @@ export function Header() {
     function handleClickOutside(event: MouseEvent) {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setShowNotifications(false)
-      }
-      if (userRef.current && !userRef.current.contains(event.target as Node)) {
-        setShowUserMenu(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
@@ -277,48 +272,15 @@ export function Header() {
             )}
           </div>
 
-          <Button variant="ghost" size="icon" onClick={() => router.push("/settings")} aria-label="設定">
-            <Settings className="w-5 h-5" />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push("/profile")}
+            className="rounded-full"
+            aria-label="プロフィール"
+          >
+            <User className="w-5 h-5" />
           </Button>
-
-          <div className="relative" ref={userRef}>
-            <Button variant="ghost" size="icon" onClick={() => setShowUserMenu(!showUserMenu)} className="rounded-full" aria-label="ユーザーメニュー">
-              <User className="w-5 h-5" />
-            </Button>
-
-            {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50" role="menu">
-                <div className="p-4 border-b border-gray-200">
-                  <p className="font-semibold">今泉歯科クリニック</p>
-                  <p className="text-sm text-gray-600">管理者</p>
-                </div>
-                <div className="p-2">
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start text-sm"
-                    onClick={() => {
-                      router.push("/profile")
-                      setShowUserMenu(false)
-                    }}
-                    role="menuitem"
-                  >
-                    プロフィール
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start text-sm text-red-600"
-                    onClick={() => {
-                      handleLogout()
-                      setShowUserMenu(false)
-                    }}
-                    role="menuitem"
-                  >
-                    ログアウト
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </header>

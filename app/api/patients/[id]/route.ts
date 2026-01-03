@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 
-import { updatePatient } from "@/lib/db"
+import { updatePatient, deletePatient } from "@/lib/db"
 import { patientUpdateSchema } from "@/lib/validations/patient"
 
 type RouteContext = {
@@ -22,5 +22,15 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
     console.error("Failed to update patient:", error)
     return NextResponse.json({ error: "患者情報の更新に失敗しました" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: RouteContext) {
+  try {
+    await deletePatient(params.id)
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Failed to delete patient:", error)
+    return NextResponse.json({ error: "患者の削除に失敗しました" }, { status: 500 })
   }
 }
