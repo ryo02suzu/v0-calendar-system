@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Bell, User, Search, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import type { Patient } from "@/lib/types"
 
 interface Notification {
   id: string
@@ -24,9 +25,13 @@ export function Header() {
   const [searchQuery, setSearchQuery] = useState("")
   const [isComposing, setIsComposing] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
+  const [showSearchResults, setShowSearchResults] = useState(false)
+  const [searchResults, setSearchResults] = useState<Patient[]>([])
+  const [isSearching, setIsSearching] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
@@ -37,6 +42,8 @@ export function Header() {
 
   const handleClearSearch = useCallback(() => {
     setSearchQuery("")
+    setShowSearchResults(false)
+    setSearchResults([])
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("app:global-search", { detail: { query: "" } }))
     }
@@ -55,6 +62,9 @@ export function Header() {
     function handleClickOutside(event: MouseEvent) {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setShowNotifications(false)
+      }
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSearchResults(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
@@ -184,18 +194,46 @@ export function Header() {
     return `${diffDays}日前`
   }
 
-  // Debounced search dispatch
+  // Debounced search dispatch and API call
   useEffect(() => {
     if (isComposing) return
 
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("app:global-search", { detail: { query: searchQuery } }))
+      }
+
+      // Perform API search for dropdown
+      if (searchQuery.trim().length >= 2) {
+        setIsSearching(true)
+        try {
+          const response = await fetch(`/api/patients?search=${encodeURIComponent(searchQuery)}`)
+          if (response.ok) {
+            const data = await response.json()
+            setSearchResults(data.data || [])
+            setShowSearchResults(true)
+          }
+        } catch (error) {
+          console.error("[v0] Search error:", error)
+          setSearchResults([])
+        } finally {
+          setIsSearching(false)
+        }
+      } else {
+        setSearchResults([])
+        setShowSearchResults(false)
       }
     }, 300)
 
     return () => clearTimeout(timer)
   }, [searchQuery, isComposing])
+
+  const handlePatientClick = (patient: Patient) => {
+    setShowSearchResults(false)
+    setSearchQuery("")
+    // Navigate to patients view with the patient selected or filtered
+    router.push(`/?view=patients&search=${encodeURIComponent(patient.name)}`)
+  }
 
   const unreadCount = notifications.filter((n) => !n.is_read).length
 
@@ -203,7 +241,7 @@ export function Header() {
     <header className="bg-white border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center flex-1 max-w-2xl">
-          <div className="relative w-full">
+          <div className="relative w-full" ref={searchRef}>
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <Input
               ref={searchInputRef}
@@ -214,6 +252,11 @@ export function Header() {
               onChange={handleSearchChange}
               onCompositionStart={handleCompositionStart}
               onCompositionEnd={handleCompositionEnd}
+              onFocus={() => {
+                if (searchQuery.trim().length >= 2 && searchResults.length > 0) {
+                  setShowSearchResults(true)
+                }
+              }}
             />
             {searchQuery && (
               <button
@@ -224,6 +267,53 @@ export function Header() {
               >
                 <X className="w-4 h-4" />
               </button>
+            )}
+
+            {/* Search Results Dropdown */}
+            {showSearchResults && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto">
+                {isSearching ? (
+                  <div className="p-4 text-center text-gray-600">
+                    <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-blue-600 border-r-transparent"></div>
+                    <p className="mt-2 text-sm">検索中...</p>
+                  </div>
+                ) : searchResults.length > 0 ? (
+                  <>
+                    <div className="p-2 border-b border-gray-200 bg-gray-50">
+                      <span className="text-xs font-semibold text-gray-600">患者 ({searchResults.length}件)</span>
+                    </div>
+                    {searchResults.map((patient) => (
+                      <div
+                        key={patient.id}
+                        className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                        onClick={() => handlePatientClick(patient)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium text-sm text-gray-900">{patient.name}</div>
+                            {patient.kana && (
+                              <div className="text-xs text-gray-600">{patient.kana}</div>
+                            )}
+                            <div className="text-xs text-gray-500 mt-1">
+                              {patient.phone}
+                              {patient.patient_number && ` • ${patient.patient_number}`}
+                            </div>
+                          </div>
+                          {patient.date_of_birth && (
+                            <div className="text-xs text-gray-500">
+                              {patient.date_of_birth}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <div className="p-4 text-center text-gray-600">
+                    <p className="text-sm">該当する患者が見つかりませんでした</p>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

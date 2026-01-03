@@ -17,6 +17,17 @@ export default function DashboardPage() {
   const [isInitialized, setIsInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Support URL-based view switching
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      const view = params.get("view")
+      if (view && ["calendar", "patients", "records", "reports", "settings"].includes(view)) {
+        setActiveView(view as typeof activeView)
+      }
+    }
+  }, [])
+
   useEffect(() => {
     const initialize = async () => {
       try {

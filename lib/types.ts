@@ -5,6 +5,7 @@ export interface Staff {
   role: string
   email: string
   phone: string
+  specialization?: string
   created_at: string
   updated_at: string
 }
@@ -23,6 +24,7 @@ export interface Patient {
   insurance_info?: any
   allergies?: string[]
   medical_notes?: string
+  medical_history?: string
   created_at?: string
   updated_at?: string
 }
@@ -32,17 +34,19 @@ export interface Appointment {
   clinic_id: string
   patient_id: string
   staff_id: string
+  service_id?: string
   date: string
   start_time: string
   end_time: string
   treatment_type: string
-  status: "pending" | "confirmed" | "cancelled" | "completed" | "no_show"
+  status: "pending" | "confirmed" | "cancelled" | "completed" | "no_show" | "scheduled"
   chair_number?: number
   notes?: string
   created_at: string
   updated_at: string
   patient?: Patient
   staff?: Staff
+  service?: Service
 }
 
 export interface MedicalRecord {
@@ -84,6 +88,13 @@ export interface BusinessHours {
   open_time: string
   close_time: string
   is_closed: boolean
+  is_open?: boolean
+  morning_start?: string | null
+  morning_end?: string | null
+  afternoon_start?: string | null
+  afternoon_end?: string | null
+  morning_closed?: boolean
+  afternoon_closed?: boolean
   created_at?: string
   updated_at?: string
 }
@@ -93,6 +104,7 @@ export interface Holiday {
   clinic_id: string
   date: string
   reason?: string
+  name?: string
   created_at: string
 }
 
