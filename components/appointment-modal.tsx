@@ -9,11 +9,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { AlertCircle, Check, ChevronsUpDown, UserPlus } from "lucide-react"
+import { AlertCircle, Search, User, Phone, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Patient, Staff, Appointment } from "@/lib/types"
+import { getPatientRiskScore } from "@/lib/db"
 
 /*
   改善点:
@@ -89,45 +88,44 @@ export function AppointmentModal({
   })
   const [patients, setPatients] = useState<Patient[]>([])
   const [isNewPatient, setIsNewPatient] = useState(false)
-  const [newPatientData, setNewPatientData] = useState({ name: "", phone: "", email: "" })
+  const [newPatientData, setNewPatientData] = useState({ name: "", name_kana: "", phone: "", email: "", date_of_birth: "" })
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchValue, setSearchValue] = useState("")
-  const [open, setOpen] = useState(false)
-  const searchRef = useRef<HTMLInputElement>(null)
-  const newPatientNameRef = useRef<HTMLInputElement>(null)
   const [riskScore, setRiskScore] = useState<any>(null)
   const [capacityCheck, setCapacityCheck] = useState<any>(null)
-
-  // 最近 10 件
-  const recentPatients = useMemo(() => patients.slice(0, 10), [patients])
+  const [patientRiskScore, setPatientRiskScore] = useState<any>(null)
 
   const selectedPatient = useMemo(
     () => patients.find((p) => p.id === formData.patient_id),
     [patients, formData.patient_id],
   )
 
-  // 🔽 行タップ・Enter 選択の共通ハンドラ
-  const handleSelectPatient = async (p: Patient) => {
-    setFormData((prev) => ({
-      ...prev,
-      patient_id: p.id,
-    }))
-    setOpen(false)
-    setSearchValue("")
-    
-    // 🆕 Load risk score for selected patient
-    if (p.id) {
-      try {
-        const response = await fetch(`/api/patients/${p.id}/risk-score`)
-        if (response.ok) {
-          const data = await response.json()
-          setRiskScore(data)
-        }
-      } catch (error) {
-        console.error("Failed to load risk score:", error)
-      }
+  // 🆕 患者選択時にリスクスコアを読み込む
+  useEffect(() => {
+    if (formData.patient_id) {
+      loadPatientRiskScore(formData.patient_id)
+    } else {
+      setPatientRiskScore(null)
     }
+  }, [formData.patient_id])
+
+  const loadPatientRiskScore = async (patientId: string) => {
+    try {
+      const riskData = await getPatientRiskScore(patientId)
+      setPatientRiskScore(riskData)
+    } catch (error) {
+      console.error("[v0] Error loading risk score:", error)
+    }
+  }
+
+  // 🆕 リスクレベルの色分け
+  const getRiskLevel = (score: number) => {
+    if (score >= 50)
+      return { label: "高リスク", color: "text-red-600", bgColor: "bg-red-50", borderColor: "border-red-300" }
+    if (score >= 20)
+      return { label: "中リスク", color: "text-amber-600", bgColor: "bg-amber-50", borderColor: "border-amber-300" }
+    return { label: "低リスク", color: "text-green-600", bgColor: "bg-green-50", borderColor: "border-green-300" }
   }
 
   // 検索フィルタ
@@ -183,15 +181,8 @@ export function AppointmentModal({
     if (isOpen) {
       loadPatients()
       setError(null)
-      setTimeout(() => {
-        if (isNewPatient) {
-          newPatientNameRef.current?.focus()
-        } else {
-          searchRef.current?.focus()
-        }
-      }, 50)
     }
-  }, [isOpen, isNewPatient])
+  }, [isOpen])
 
   const loadPatients = async () => {
     try {
@@ -224,7 +215,7 @@ export function AppointmentModal({
         staff_id: initialSlotData?.staffId || staff[0]?.id,
       })
       setIsNewPatient(false)
-      setNewPatientData({ name: "", phone: "", email: "" })
+      setNewPatientData({ name: "", name_kana: "", phone: "", email: "", date_of_birth: "" })
     }
     setError(null)
   }, [appointment, staff, initialSlotData])
@@ -296,8 +287,10 @@ export function AppointmentModal({
         }
         const newPatient = await createPatientViaApi({
           name: newPatientData.name,
+          name_kana: newPatientData.name_kana,
           phone: newPatientData.phone,
           email: newPatientData.email,
+          date_of_birth: newPatientData.date_of_birth,
         })
         patientId = newPatient.id
         setPatients((prev) => [newPatient, ...prev])
@@ -339,20 +332,15 @@ export function AppointmentModal({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* 患者選択 */}
+          {/* 患者選択セクション */}
           <div>
             <Label>患者</Label>
-            <div className="flex gap-2 mb-2">
+            <div className="flex gap-2 mb-3">
               <Button
                 type="button"
                 variant={!isNewPatient ? "default" : "outline"}
                 size="sm"
-                onClick={() => {
-                  setIsNewPatient(false)
-                  setSearchValue("")
-                  setTimeout(() => searchRef.current?.focus(), 50)
-                }}
-                disabled={isSaving}
+                onClick={() => setIsNewPatient(false)}
               >
                 既存患者
               </Button>
@@ -360,180 +348,188 @@ export function AppointmentModal({
                 type="button"
                 variant={isNewPatient ? "default" : "outline"}
                 size="sm"
-                onClick={() => {
-                  setIsNewPatient(true)
-                  setTimeout(() => newPatientNameRef.current?.focus(), 50)
-                }}
-                disabled={isSaving}
+                onClick={() => setIsNewPatient(true)}
               >
-                <UserPlus className="h-4 w-4 mr-1" />
                 新規患者
               </Button>
             </div>
 
             {!isNewPatient ? (
-              <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    role="combobox"
-                    aria-haspopup="listbox"
-                    aria-expanded={open}
-                    className={cn("w-full justify-between text左", !selectedPatient && "text-muted-foreground")}
-                    disabled={isSaving}
-                    onClick={() => setTimeout(() => searchRef.current?.focus(), 30)}
-                  >
-                    {selectedPatient ? (
-                      <span className="flex flex-col w-full min-w-0">
-                        <span className="truncate font-medium">
-                          {selectedPatient.name}
-                          {selectedPatient.patient_number && ` [${selectedPatient.patient_number}]`}
-                        </span>
-                        <span className="text-xs text-gray-500 truncate">
-                          {(selectedPatient as any).kana && `${(selectedPatient as any).kana} / `}
-                          {selectedPatient.phone}
-                        </span>
-                      </span>
-                    ) : (
-                      "患者を選択"
+              <div className="space-y-3">
+                {/* 🆕 検索ボックスを常時表示 */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="患者名、カナ、電話番号、患者番号で検索..."
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    className="pl-10"
+                    autoFocus
+                  />
+                </div>
+
+                {/* 🆕 選択済み患者カード（リスクスコア表示） */}
+                {selectedPatient && !searchValue && (
+                  <div className="p-4 border-2 border-primary rounded-lg bg-primary/5">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                          <User className="w-6 h-6 text-primary" />
+                        </div>
+                        <div>
+                          <div className="font-bold text-lg">{selectedPatient.name}</div>
+                          {selectedPatient.name_kana && (
+                            <div className="text-sm text-muted-foreground">{selectedPatient.name_kana}</div>
+                          )}
+                          <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+                            <Phone className="w-3 h-3" />
+                            {selectedPatient.phone}
+                            {selectedPatient.age && <span>・ {selectedPatient.age}歳</span>}
+                          </div>
+                          {selectedPatient.patient_number && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              患者番号: {selectedPatient.patient_number}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setFormData({ ...formData, patient_id: undefined })}
+                      >
+                        変更
+                      </Button>
+                    </div>
+
+                    {/* 🆕 リスクスコア表示 */}
+                    {patientRiskScore && patientRiskScore.totalAppointments > 0 && (
+                      <div
+                        className={`p-3 rounded-lg border ${getRiskLevel(patientRiskScore.riskScore).bgColor} ${getRiskLevel(patientRiskScore.riskScore).borderColor}`}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <AlertTriangle className={`w-4 h-4 ${getRiskLevel(patientRiskScore.riskScore).color}`} />
+                          <span className={`text-sm font-bold ${getRiskLevel(patientRiskScore.riskScore).color}`}>
+                            {getRiskLevel(patientRiskScore.riskScore).label} (スコア: {patientRiskScore.riskScore})
+                          </span>
+                        </div>
+                        <div className="text-xs text-muted-foreground space-y-0.5">
+                          <div>総予約数: {patientRiskScore.totalAppointments}回</div>
+                          {patientRiskScore.cancellationCount > 0 && (
+                            <div>キャンセル: {patientRiskScore.cancellationCount}回</div>
+                          )}
+                          {patientRiskScore.noShowCount > 0 && (
+                            <div className="text-red-600 font-semibold">
+                              無断キャンセル: {patientRiskScore.noShowCount}回
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     )}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[480px] p-0" align="start">
-                  <Command>
-                    <CommandInput
-                      ref={searchRef}
-                      placeholder="患者名 / カナ / ひらがな / 電話 / 番号で検索..."
-                      value={searchValue}
-                      onValueChange={setSearchValue}
-                      disabled={isSaving}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          // ハイライト行がない状態で Enter 押しても変な選択が走らないようにする
-                          const selectedItem = document.querySelector('[cmdk-item][data-selected="true"]')
-                          if (!selectedItem) {
-                            e.preventDefault()
-                            e.stopPropagation()
-                          }
-                        }
-                      }}
-                    />
-                    <CommandList>
-                      <CommandEmpty>該当する患者が見つかりません</CommandEmpty>
+                  </div>
+                )}
 
-                      {!searchValue && recentPatients.length > 0 && (
-                        <CommandGroup heading="最近来院">
-                          {recentPatients.map((p) => (
-                          <CommandItem
-                            key={p.id}
-                            value={`${p.name} ${(p as any).kana || (p as any).name_kana || ""} ${p.phone || ""} ${
-                              p.patient_number || ""
-                            }`}
-                            onPointerDown={(e) => {
-                              e.preventDefault()
-                              handleSelectPatient(p)
-                            }}
-                            onSelect={() => handleSelectPatient(p)}
-                            onClick={() => handleSelectPatient(p)}
-                            className="cursor-pointer"
-                          >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  formData.patient_id === p.id ? "opacity-100" : "opacity-0",
-                                )}
-                              />
-                              <div className="flex flex-col min-w-0">
-                                <span className="truncate font-medium">
-                                  {p.name}
-                                  {p.patient_number && ` [${p.patient_number}]`}
+                {/* 🆕 検索結果リスト */}
+                {searchValue && filteredPatients.length > 0 && (
+                  <div className="max-h-[300px] overflow-y-auto space-y-2 border rounded-lg p-2 bg-muted/20">
+                    <div className="text-xs text-muted-foreground px-2 py-1">
+                      {filteredPatients.length}件の患者が見つかりました
+                    </div>
+                    {filteredPatients.map((patient) => (
+                      <button
+                        key={patient.id}
+                        type="button"
+                        onClick={() => {
+                          setFormData({ ...formData, patient_id: patient.id })
+                          setSearchValue("")
+                        }}
+                        className="w-full p-3 rounded-lg border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-left bg-card"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+                            <User className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold">{patient.name}</div>
+                            {patient.name_kana && (
+                              <div className="text-xs text-muted-foreground">{patient.name_kana}</div>
+                            )}
+                            <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
+                              <Phone className="w-3 h-3" />
+                              {patient.phone}
+                              {patient.age && <span>・ {patient.age}歳</span>}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              {patient.patient_number && (
+                                <span className="text-[10px] text-muted-foreground">{patient.patient_number}</span>
+                              )}
+                              {patient.no_show_count && patient.no_show_count > 0 && (
+                                <span className="text-[10px] px-1.5 py-0.5 bg-red-100 text-red-700 rounded-full font-semibold">
+                                  無断{patient.no_show_count}回
                                 </span>
-                                <span className="text-xs text-gray-500 truncate">
-                                  {(p as any).kana && `${(p as any).kana} / `}
-                                  {p.phone}
-                                </span>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      )}
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
 
-                      {searchValue && (
-                        <CommandGroup heading="検索結果">
-                          {filteredPatients.map((p) => (
-                          <CommandItem
-                            key={p.id}
-                            value={`${p.name} ${(p as any).kana || (p as any).name_kana || ""} ${p.phone || ""} ${
-                              p.patient_number || ""
-                            }`}
-                            onPointerDown={(e) => {
-                              e.preventDefault()
-                              handleSelectPatient(p)
-                            }}
-                            onSelect={() => handleSelectPatient(p)}
-                            onClick={() => handleSelectPatient(p)}
-                            className="cursor-pointer"
-                          >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  formData.patient_id === p.id ? "opacity-100" : "opacity-0",
-                                )}
-                              />
-                              <div className="flex flex-col min-w-0">
-                                <span className="truncate font-medium">
-                                  {p.name}
-                                  {p.patient_number && ` [${p.patient_number}]`}
-                                </span>
-                                <span className="text-xs text-gray-500 truncate">
-                                  {(p as any).kana && `${(p as any).kana} / `}
-                                  {p.phone}
-                                </span>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      )}
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+                {/* 検索結果なし */}
+                {searchValue && filteredPatients.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground text-sm border rounded-lg bg-muted/10">
+                    <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <div>患者が見つかりませんでした</div>
+                    <div className="text-xs mt-1">別のキーワードで検索してみてください</div>
+                  </div>
+                )}
+
+                {/* 未選択状態 */}
+                {!selectedPatient && !searchValue && (
+                  <div className="text-center py-8 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
+                    <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <div>患者を検索してください</div>
+                    <div className="text-xs mt-1">名前、カナ、電話番号、患者番号で検索できます</div>
+                  </div>
+                )}
+              </div>
             ) : (
+              // 新規患者フォーム
               <div className="space-y-2">
+                <Input
+                  placeholder="患者名（必須）"
+                  value={newPatientData.name}
+                  onChange={(e) => setNewPatientData({ ...newPatientData, name: e.target.value })}
+                  required
+                />
+                <Input
+                  placeholder="カナ"
+                  value={newPatientData.name_kana}
+                  onChange={(e) => setNewPatientData({ ...newPatientData, name_kana: e.target.value })}
+                />
+                <Input
+                  placeholder="電話番号（必須）"
+                  value={newPatientData.phone}
+                  onChange={(e) => setNewPatientData({ ...newPatientData, phone: e.target.value })}
+                  required
+                />
+                <Input
+                  placeholder="メールアドレス"
+                  type="email"
+                  value={newPatientData.email}
+                  onChange={(e) => setNewPatientData({ ...newPatientData, email: e.target.value })}
+                />
                 <div>
-                  <Label htmlFor="new-patient-name">患者名 *</Label>
+                  <Label htmlFor="date_of_birth" className="text-xs text-muted-foreground">
+                    生年月日
+                  </Label>
                   <Input
-                    ref={newPatientNameRef}
-                    id="new-patient-name"
-                    placeholder="患者名（漢字）"
-                    value={newPatientData.name}
-                    onChange={(e) => setNewPatientData({ ...newPatientData, name: e.target.value })}
-                    required
-                    disabled={isSaving}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="new-patient-phone">電話番号 *</Label>
-                  <Input
-                    id="new-patient-phone"
-                    placeholder="電話番号"
-                    value={newPatientData.phone}
-                    onChange={(e) => setNewPatientData({ ...newPatientData, phone: e.target.value })}
-                    required
-                    disabled={isSaving}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="new-patient-email">メールアドレス（任意）</Label>
-                  <Input
-                    id="new-patient-email"
-                    type="email"
-                    placeholder="メールアドレス"
-                    value={newPatientData.email}
-                    onChange={(e) => setNewPatientData({ ...newPatientData, email: e.target.value })}
-                    disabled={isSaving}
+                    id="date_of_birth"
+                    type="date"
+                    value={newPatientData.date_of_birth}
+                    onChange={(e) => setNewPatientData({ ...newPatientData, date_of_birth: e.target.value })}
                   />
                 </div>
               </div>
@@ -769,7 +765,7 @@ export function AppointmentModal({
   )
 }
 
-async function createPatientViaApi(patient: { name: string; phone: string; email?: string }) {
+async function createPatientViaApi(patient: { name: string; name_kana?: string; phone: string; email?: string; date_of_birth?: string }) {
   const response = await fetch("/api/patients", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
