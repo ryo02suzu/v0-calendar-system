@@ -2,7 +2,7 @@
 
 import { CLINIC_ID } from "./constants"
 import { supabaseAdmin } from "./supabase/admin"
-import type { Patient } from "./types"
+import type { Patient, WaitlistEntry } from "./types"
 
 // 患者関連
 export async function getPatients(): Promise<Patient[]> {
@@ -1276,6 +1276,228 @@ export async function markAllNotificationsRead() {
   } catch (error) {
     console.error("Error marking all notifications as read:", error)
     throw error
+  }
+}
+
+// 🆕 フェーズ1: スタッフ別キャパシティに対応したダブルブッキングチェック
+export async function checkAppointmentConflict(
+  date: string,
+  startTime: string,
+  endTime: string,
+  staffId: string,
+  chairNumber?: number,
+  excludeId?: string,
+) {
+  try {
+    const settings = await getClinicSettings()
+
+    const { data: staffData } = await supabaseAdmin
+      .from("staff")
+      .select("max_concurrent_appointments")
+      .eq("id", staffId)
+      .single()
+
+    const staffCapacity = staffData?.max_concurrent_appointments ?? settings?.max_concurrent_appointments ?? 1
+
+    let staffQuery = supabaseAdmin
+      .from("appointments")
+      .select("id, start_time, end_time, chair_number")
+      .eq("clinic_id", CLINIC_ID)
+      .eq("date", date)
+      .eq("staff_id", staffId)
+      .neq("status", "cancelled")
+
+    if (excludeId) {
+      staffQuery = staffQuery.neq("id", excludeId)
+    }
+
+    const { data: staffAppointments, error: staffError } = await staffQuery
+    if (staffError) throw staffError
+
+    const staffOverlapCount =
+      staffAppointments?.filter((apt) => {
+        return startTime < apt.end_time && endTime > apt.start_time
+      }).length || 0
+
+    let chairOverlapCount = 0
+    if (chairNumber) {
+      const chairConflicts =
+        staffAppointments?.filter((apt) => {
+          return apt.chair_number === chairNumber && startTime < apt.end_time && endTime > apt.start_time
+        }) || []
+      chairOverlapCount = chairConflicts.length
+    }
+
+    const canBook = chairOverlapCount === 0 && staffOverlapCount < staffCapacity
+
+    return {
+      canBook,
+      staffOverlapCount,
+      chairOverlapCount,
+      staffCapacity,
+      remainingCapacity: Math.max(0, staffCapacity - staffOverlapCount),
+      message: !canBook
+        ? chairOverlapCount > 0
+          ? `チェア${chairNumber}は既に使用中です。別のチェアを選択してください。`
+          : `この時間帯はスタッフの上限（${staffCapacity}件）に達しています。`
+        : undefined,
+    }
+  } catch (error) {
+    console.error("[v0] checkAppointmentConflict error:", error)
+    return {
+      canBook: false,
+      staffOverlapCount: 0,
+      chairOverlapCount: 0,
+      staffCapacity: 1,
+      remainingCapacity: 0,
+      message: "予約の確認中にエラーが発生しました",
+    }
+  }
+}
+
+// 🆕 フェーズ1: 患者のリスクスコアを計算
+export async function getPatientRiskScore(patientId: string) {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("appointments")
+      .select("status")
+      .eq("clinic_id", CLINIC_ID)
+      .eq("patient_id", patientId)
+
+    if (error) throw error
+
+    const cancellationCount = data?.filter((apt) => apt.status === "cancelled").length || 0
+    const noShowCount = data?.filter((apt) => apt.status === "no_show").length || 0
+    const totalAppointments = data?.length || 0
+
+    let riskScore = 0
+    if (totalAppointments > 0) {
+      const cancellationRate = cancellationCount / totalAppointments
+      const noShowRate = noShowCount / totalAppointments
+      riskScore = Math.round((cancellationRate * 50 + noShowRate * 100) * 100)
+    }
+
+    return {
+      riskScore: Math.min(riskScore, 100),
+      riskLevel: riskScore < 30 ? "low" : riskScore < 60 ? "medium" : "high",
+      cancellationCount,
+      noShowCount,
+      totalAppointments,
+    }
+  } catch (error) {
+    console.error("[v0] Error calculating risk score:", error)
+    return { 
+      riskScore: 0, 
+      riskLevel: "low" as const,
+      cancellationCount: 0, 
+      noShowCount: 0, 
+      totalAppointments: 0 
+    }
+  }
+}
+
+// 🆕 フェーズ3: キャンセル待ちリスト取得
+export async function getWaitlist() {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("waitlist")
+      .select(`
+        *,
+        patient:patients(*),
+        staff:staff(*)
+      `)
+      .eq("clinic_id", CLINIC_ID)
+      .eq("status", "active")
+      .order("priority", { ascending: false })
+      .order("created_at", { ascending: true })
+
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error("[v0] Error getting waitlist:", error)
+    return []
+  }
+}
+
+// 🆕 フェーズ3: キャンセル待ちに追加
+export async function addToWaitlist(entry: any) {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("waitlist")
+      .insert({
+        ...entry,
+        clinic_id: CLINIC_ID,
+        status: "active",
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return { success: true, data }
+  } catch (error) {
+    console.error("[v0] Error adding to waitlist:", error)
+    return { success: false, error }
+  }
+}
+
+// 🆕 フェーズ3: キャンセル待ちから削除
+export async function removeFromWaitlist(id: string) {
+  try {
+    const { error } = await supabaseAdmin.from("waitlist").delete().eq("id", id)
+
+    if (error) throw error
+    return { success: true }
+  } catch (error) {
+    console.error("[v0] Error removing from waitlist:", error)
+    return { success: false, error }
+  }
+}
+
+// 🆕 フェーズ3: 今日の予約を取得
+export async function getTodayAppointments() {
+  try {
+    const today = new Date().toISOString().split("T")[0]
+    const { data, error } = await supabaseAdmin
+      .from("appointments")
+      .select(`
+        *,
+        patient:patients(*),
+        staff:staff(*)
+      `)
+      .eq("clinic_id", CLINIC_ID)
+      .eq("date", today)
+      .neq("status", "cancelled")
+      .order("start_time", { ascending: true })
+
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error("[v0] Error getting today's appointments:", error)
+    return []
+  }
+}
+
+// 🆕 フェーズ3: 日付範囲で予約を取得
+export async function getAppointmentsByDateRange(startDate: string, endDate: string) {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("appointments")
+      .select(`
+        *,
+        patient:patients(*),
+        staff:staff(*)
+      `)
+      .eq("clinic_id", CLINIC_ID)
+      .gte("date", startDate)
+      .lte("date", endDate)
+      .order("date", { ascending: true })
+      .order("start_time", { ascending: true })
+
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error("[v0] Error getting appointments by date range:", error)
+    return []
   }
 }
 
