@@ -1247,9 +1247,20 @@ export async function markNotificationRead(id: string) {
       .eq("id", id)
       .eq("clinic_id", CLINIC_ID)
       .select()
-      .single()
+      .maybeSingle()
 
-    if (error) throw error
+    // Handle cases where notification doesn't exist
+    if (error) {
+      console.error("Database error marking notification as read:", error)
+      throw error
+    }
+
+    // Return null if notification not found (instead of throwing)
+    if (!data) {
+      console.warn("Notification not found:", id)
+      return null
+    }
+
     return data
   } catch (error) {
     console.error("Error marking notification as read:", error)
