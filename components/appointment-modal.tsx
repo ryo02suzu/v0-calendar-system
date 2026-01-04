@@ -96,6 +96,8 @@ export function AppointmentModal({
   const [open, setOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
   const newPatientNameRef = useRef<HTMLInputElement>(null)
+  const [riskScore, setRiskScore] = useState<any>(null)
+  const [capacityCheck, setCapacityCheck] = useState<any>(null)
 
   // 最近 10 件
   const recentPatients = useMemo(() => patients.slice(0, 10), [patients])
@@ -106,13 +108,26 @@ export function AppointmentModal({
   )
 
   // 🔽 行タップ・Enter 選択の共通ハンドラ
-  const handleSelectPatient = (p: Patient) => {
+  const handleSelectPatient = async (p: Patient) => {
     setFormData((prev) => ({
       ...prev,
       patient_id: p.id,
     }))
     setOpen(false)
     setSearchValue("")
+    
+    // 🆕 Load risk score for selected patient
+    if (p.id) {
+      try {
+        const response = await fetch(`/api/patients/${p.id}/risk-score`)
+        if (response.ok) {
+          const data = await response.json()
+          setRiskScore(data)
+        }
+      } catch (error) {
+        console.error("Failed to load risk score:", error)
+      }
+    }
   }
 
   // 検索フィルタ
@@ -214,6 +229,41 @@ export function AppointmentModal({
     setError(null)
   }, [appointment, staff, initialSlotData])
 
+  // 🆕 Check capacity when date/time/staff/chair changes
+  useEffect(() => {
+    const checkCapacity = async () => {
+      if (
+        formData.date &&
+        formData.start_time &&
+        formData.end_time &&
+        formData.staff_id &&
+        formData.start_time < formData.end_time
+      ) {
+        try {
+          const response = await fetch("/api/appointments/check-conflict", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              date: formData.date,
+              start_time: formData.start_time,
+              end_time: formData.end_time,
+              staff_id: formData.staff_id,
+              chair_number: formData.chair_number,
+              exclude_id: appointment?.id,
+            }),
+          })
+          if (response.ok) {
+            const data = await response.json()
+            setCapacityCheck(data)
+          }
+        } catch (error) {
+          console.error("Failed to check capacity:", error)
+        }
+      }
+    }
+    checkCapacity()
+  }, [formData.date, formData.start_time, formData.end_time, formData.staff_id, formData.chair_number, appointment?.id])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -226,6 +276,13 @@ export function AppointmentModal({
       }
       if (formData.start_time >= formData.end_time) {
         setError("終了時刻は開始時刻より後に設定してください")
+        setIsSaving(false)
+        return
+      }
+
+      // 🆕 Check capacity before saving
+      if (capacityCheck && !capacityCheck.canBook) {
+        setError(capacityCheck.message || "この時間帯は予約できません")
         setIsSaving(false)
         return
       }
@@ -483,6 +540,43 @@ export function AppointmentModal({
             )}
           </div>
 
+          {/* 🆕 Risk Score Display */}
+          {riskScore && selectedPatient && (
+            <Alert className={cn(
+              "border-l-4",
+              riskScore.riskLevel === "high" ? "border-l-red-500 bg-red-50" :
+              riskScore.riskLevel === "medium" ? "border-l-yellow-500 bg-yellow-50" :
+              "border-l-green-500 bg-green-50"
+            )}>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <div className="font-medium">
+                  リスクスコア: {riskScore.riskScore}/100
+                  {riskScore.riskLevel === "high" ? " (高リスク)" :
+                   riskScore.riskLevel === "medium" ? " (中リスク)" : " (低リスク)"}
+                </div>
+                <div className="text-xs mt-1">
+                  キャンセル: {riskScore.cancellationCount}回 / 無断キャンセル: {riskScore.noShowCount}回 / 総予約: {riskScore.totalAppointments}回
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* 🆕 Capacity Check Display */}
+          {capacityCheck && !capacityCheck.canBook && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{capacityCheck.message}</AlertDescription>
+            </Alert>
+          )}
+          {capacityCheck && capacityCheck.canBook && capacityCheck.remainingCapacity > 0 && (
+            <Alert className="border-l-4 border-l-blue-500 bg-blue-50">
+              <AlertDescription>
+                この時間帯の残り予約可能数: {capacityCheck.remainingCapacity}/{capacityCheck.staffCapacity}
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* 日付 / 担当者 */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -587,26 +681,46 @@ export function AppointmentModal({
           </div>
 
           {/* ステータス */}
-          <div>
-            <Label htmlFor="status">ステータス</Label>
-            <Select
-              value={formData.status}
-              onValueChange={(value) =>
-                setFormData({ ...formData, status: value as Appointment["status"] })
-              }
-              disabled={isSaving}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="confirmed">確定</SelectItem>
-                <SelectItem value="pending">保留</SelectItem>
-                <SelectItem value="cancelled">キャンセル</SelectItem>
-                <SelectItem value="completed">完了</SelectItem>
-                <SelectItem value="no_show">無断キャンセル</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="status">ステータス</Label>
+              <Select
+                value={formData.status}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, status: value as Appointment["status"] })
+                }
+                disabled={isSaving}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="confirmed">確定</SelectItem>
+                  <SelectItem value="pending">保留</SelectItem>
+                  <SelectItem value="cancelled">キャンセル</SelectItem>
+                  <SelectItem value="completed">完了</SelectItem>
+                  <SelectItem value="no_show">無断キャンセル</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="confirmation_status">患者確認</Label>
+              <Select
+                value={formData.confirmation_status || "pending"}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, confirmation_status: value as "pending" | "confirmed" })
+                }
+                disabled={isSaving}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">未確認</SelectItem>
+                  <SelectItem value="confirmed">確認済み</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* メモ */}

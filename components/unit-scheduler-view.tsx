@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import { format, parseISO, isSameDay } from "date-fns"
 import { ja } from "date-fns/locale"
 import type { Appointment } from "@/lib/types"
-import { Clock, Sun, Sunset } from "lucide-react"
+import { Clock, Sun, Sunset, CheckCircle2, AlertCircle } from "lucide-react"
 
 interface UnitSchedulerViewProps {
   currentDate: Date
@@ -124,14 +124,26 @@ export default function UnitSchedulerView({
                       {cellAppointments.map((apt) => (
                         <div
                           key={apt.id}
-                          onClick={(e) => { e.stopPropagation(); onAppointmentClick(apt) }}
-                          className={`p-2 rounded-lg border-l-4 ${unit.color} bg-white shadow-sm hover:shadow-md transition-all cursor-pointer`}
+                          className="relative"
                         >
-                          <div className="text-xs font-semibold text-gray-900 truncate">
-                            {apt.patient?.name || "患者名なし"}
+                          <div
+                            onClick={(e) => { e.stopPropagation(); onAppointmentClick(apt) }}
+                            className={`p-2 rounded-lg border-l-4 ${unit.color} bg-white shadow-sm hover:shadow-md transition-all cursor-pointer`}
+                          >
+                            <div className="text-xs font-semibold text-gray-900 truncate">
+                              {apt.patient?.name || "患者名なし"}
+                            </div>
+                            <div className="text-xs text-gray-600 mt-1">
+                              {apt.start_time} - {apt.end_time}
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-600 mt-1">
-                            {apt.start_time} - {apt.end_time}
+                          {/* 🆕 確認バッジ（右上に表示） */}
+                          <div className="absolute -top-1 -right-1 z-10">
+                            {apt.confirmation_status === "confirmed" ? (
+                              <CheckCircle2 className="w-4 h-4 text-green-600 bg-white rounded-full shadow-sm" />
+                            ) : (
+                              <AlertCircle className="w-4 h-4 text-red-600 bg-white rounded-full shadow-sm" />
+                            )}
                           </div>
                         </div>
                       ))}

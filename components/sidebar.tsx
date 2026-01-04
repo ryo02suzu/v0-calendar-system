@@ -1,15 +1,35 @@
 "use client"
 
-import { Calendar, Users, FileText, BarChart3, Settings } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Calendar, Users, FileText, BarChart3, Settings, LayoutDashboard } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { getClinic } from "@/lib/db"
+import type { ViewType } from "@/lib/types"
 
 interface SidebarProps {
-  activeView: "calendar" | "patients" | "records" | "reports" | "settings"
-  onViewChange: (view: "calendar" | "patients" | "records" | "reports" | "settings") => void
+  activeView: ViewType
+  onViewChange: (view: ViewType) => void
 }
 
 export function Sidebar({ activeView, onViewChange }: SidebarProps) {
+  const [clinicName, setClinicName] = useState("今泉歯科クリニック")
+
+  useEffect(() => {
+    const fetchClinicName = async () => {
+      try {
+        const clinic = await getClinic()
+        if (clinic?.name) {
+          setClinicName(clinic.name)
+        }
+      } catch (error) {
+        console.error("Failed to fetch clinic name:", error)
+      }
+    }
+    fetchClinicName()
+  }, [])
+
   const menuItems = [
+    { id: "dashboard" as const, icon: LayoutDashboard, label: "ダッシュボード" },
     { id: "calendar" as const, icon: Calendar, label: "カレンダー" },
     { id: "patients" as const, icon: Users, label: "患者一覧" },
     { id: "records" as const, icon: FileText, label: "カルテ" },
@@ -21,7 +41,7 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
     <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
       <div className="p-6 border-b border-gray-200">
         <h1 className="text-xl font-bold text-blue-600">DentalFlow</h1>
-        <p className="text-sm text-gray-600 mt-1">今泉歯科クリニック</p>
+        <p className="text-sm text-gray-600 mt-1">{clinicName}</p>
       </div>
 
       <nav className="flex-1 p-4">
