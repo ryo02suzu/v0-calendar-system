@@ -8,12 +8,14 @@ import { PatientList } from "@/components/patient-list"
 import { MedicalRecords } from "@/components/medical-records"
 import { Reports } from "@/components/reports"
 import { Settings } from "@/components/settings"
+import { Dashboard } from "@/components/dashboard"
 import { initializeClinic } from "@/lib/db"
 import { Button } from "@/components/ui/button"
 import { AlertCircle } from "lucide-react"
+import type { ViewType } from "@/lib/types"
 
 export default function DashboardPage() {
-  const [activeView, setActiveView] = useState<"calendar" | "patients" | "records" | "reports" | "settings">("calendar")
+  const [activeView, setActiveView] = useState<ViewType>("calendar")
   const [isInitialized, setIsInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -22,8 +24,8 @@ export default function DashboardPage() {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search)
       const view = params.get("view")
-      if (view && ["calendar", "patients", "records", "reports", "settings"].includes(view)) {
-        setActiveView(view as typeof activeView)
+      if (view && ["calendar", "patients", "records", "reports", "settings", "dashboard"].includes(view)) {
+        setActiveView(view as ViewType)
       }
     }
   }, [])
@@ -101,6 +103,7 @@ export default function DashboardPage() {
         <Header />
 
         <main className="flex-1 overflow-auto">
+          {activeView === "dashboard" && <Dashboard />}
           {activeView === "calendar" && <CalendarView />}
           {activeView === "patients" && <PatientList />}
           {activeView === "records" && <MedicalRecords />}

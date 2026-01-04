@@ -65,6 +65,63 @@ export function Reports() {
         </Card>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>キャパシティ充填率</CardTitle>
+            <CardDescription>スタッフ別の予約充填状況</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[
+                { staff: "今泉 太郎", capacity: 40, booked: 38, percentage: 95 },
+                { staff: "山田 花子", capacity: 40, booked: 35, percentage: 87.5 },
+                { staff: "佐藤 次郎", capacity: 30, booked: 22, percentage: 73 },
+              ].map((item) => (
+                <div key={item.staff}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium">{item.staff}</span>
+                    <span className="text-sm text-gray-600">{item.booked}/{item.capacity}枠 ({item.percentage.toFixed(1)}%)</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full ${item.percentage > 90 ? 'bg-green-600' : item.percentage > 70 ? 'bg-blue-600' : 'bg-yellow-600'}`}
+                      style={{ width: `${item.percentage}%` }} 
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>確認状態別の予約</CardTitle>
+            <CardDescription>患者確認機能の統計</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[
+                { status: "確認済み", count: 185, percentage: 75, color: "bg-green-600" },
+                { status: "未確認", count: 45, percentage: 18, color: "bg-yellow-600" },
+                { status: "期限切れ", count: 15, percentage: 7, color: "bg-red-600" },
+              ].map((item) => (
+                <div key={item.status}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium">{item.status}</span>
+                    <span className="text-sm text-gray-600">{item.count}件 ({item.percentage}%)</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className={`${item.color} h-2 rounded-full`} style={{ width: `${item.percentage}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>

@@ -549,6 +549,27 @@ export function Settings() {
                           onChange={(e) => setEditingStaff({ ...editingStaff, phone: e.target.value })}
                         />
                       </div>
+                      <div>
+                        <Label>同時対応人数</Label>
+                        <Select
+                          value={String(editingStaff?.max_concurrent_appointments || 1)}
+                          onValueChange={(v) =>
+                            setEditingStaff({ ...editingStaff, max_concurrent_appointments: Number(v) })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">1人</SelectItem>
+                            <SelectItem value="2">2人</SelectItem>
+                            <SelectItem value="3">3人</SelectItem>
+                            <SelectItem value="4">4人</SelectItem>
+                            <SelectItem value="5">5人</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-sm text-gray-600 mt-1">このスタッフが同時に対応できる患者数</p>
+                      </div>
                     </div>
                     <DialogFooter>
                       <Button onClick={handleSaveStaff}>保存</Button>
@@ -776,6 +797,85 @@ export function Settings() {
                   </SelectContent>
                 </Select>
                 <p className="text-sm text-gray-600 mt-1">予約と予約の間の時間</p>
+              </div>
+              <div>
+                <Label>デフォルトの同時予約上限</Label>
+                <Select
+                  value={String(clinicSettings?.max_concurrent_appointments || 1)}
+                  onValueChange={(v) =>
+                    setClinicSettings({ ...clinicSettings, max_concurrent_appointments: Number(v) })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1</SelectItem>
+                    <SelectItem value="2">2</SelectItem>
+                    <SelectItem value="3">3</SelectItem>
+                    <SelectItem value="4">4</SelectItem>
+                    <SelectItem value="5">5</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-gray-600 mt-1">スタッフが同時に対応できる予約数</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>ダブルブッキング許可</Label>
+                  <p className="text-sm text-gray-600">スタッフの上限内でダブルブッキングを許可</p>
+                </div>
+                <Switch
+                  checked={clinicSettings?.allow_double_booking || false}
+                  onCheckedChange={(checked) =>
+                    setClinicSettings({ ...clinicSettings, allow_double_booking: checked })
+                  }
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>患者確認機能</Label>
+                  <p className="text-sm text-gray-600">予約前日に患者確認を実施</p>
+                </div>
+                <Switch
+                  checked={clinicSettings?.enable_patient_confirmation || false}
+                  onCheckedChange={(checked) =>
+                    setClinicSettings({ ...clinicSettings, enable_patient_confirmation: checked })
+                  }
+                />
+              </div>
+              {clinicSettings?.enable_patient_confirmation && (
+                <div>
+                  <Label>確認期限（時間）</Label>
+                  <Select
+                    value={String(clinicSettings?.confirmation_deadline_hours || 24)}
+                    onValueChange={(v) =>
+                      setClinicSettings({ ...clinicSettings, confirmation_deadline_hours: Number(v) })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="12">12時間前</SelectItem>
+                      <SelectItem value="24">24時間前</SelectItem>
+                      <SelectItem value="48">48時間前</SelectItem>
+                      <SelectItem value="72">72時間前</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-gray-600 mt-1">予約の何時間前までに確認が必要か</p>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>QRチェックイン機能</Label>
+                  <p className="text-sm text-gray-600">QRコードでの来院確認を有効化</p>
+                </div>
+                <Switch
+                  checked={clinicSettings?.enable_qr_checkin || false}
+                  onCheckedChange={(checked) =>
+                    setClinicSettings({ ...clinicSettings, enable_qr_checkin: checked })
+                  }
+                />
               </div>
               <Button onClick={handleSaveSettings}>保存</Button>
             </CardContent>

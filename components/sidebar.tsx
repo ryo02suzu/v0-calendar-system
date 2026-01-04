@@ -1,13 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Calendar, Users, FileText, BarChart3, Settings } from "lucide-react"
+import { Calendar, Users, FileText, BarChart3, Settings, LayoutDashboard } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getClinic } from "@/lib/db"
+import type { ViewType } from "@/lib/types"
 
 interface SidebarProps {
-  activeView: "calendar" | "patients" | "records" | "reports" | "settings"
-  onViewChange: (view: "calendar" | "patients" | "records" | "reports" | "settings") => void
+  activeView: ViewType
+  onViewChange: (view: ViewType) => void
 }
 
 export function Sidebar({ activeView, onViewChange }: SidebarProps) {
@@ -28,6 +29,7 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
   }, [])
 
   const menuItems = [
+    { id: "dashboard" as const, icon: LayoutDashboard, label: "ダッシュボード" },
     { id: "calendar" as const, icon: Calendar, label: "カレンダー" },
     { id: "patients" as const, icon: Users, label: "患者一覧" },
     { id: "records" as const, icon: FileText, label: "カルテ" },
