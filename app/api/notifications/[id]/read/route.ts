@@ -16,7 +16,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const { id } = resolvedParams
 
-    // Validate id format (basic UUID validation)
+    // Validate id format (non-empty string)
     if (typeof id !== "string" || id.trim() === "") {
       console.error("Invalid notification id format:", id)
       return NextResponse.json(
@@ -45,15 +45,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       stack: error?.stack,
       code: error?.code,
     })
-
-    // Handle specific database errors
-    if (error?.code === "PGRST116") {
-      // PostgreSQL error: no rows returned
-      return NextResponse.json(
-        { error: "通知が見つかりませんでした" },
-        { status: 404 }
-      )
-    }
 
     // Generic error response
     return NextResponse.json(
