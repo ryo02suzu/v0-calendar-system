@@ -13,16 +13,18 @@ import {
 } from "date-fns"
 import { ja } from "date-fns/locale"
 import { Sun, Sunset } from "lucide-react"
-import type { CalendarAppointment } from "@/types/api"
+import type { Appointment, Holiday, BusinessHours } from "@/lib/types"
 
 interface MonthViewProps {
   currentDate: Date
-  appointments: CalendarAppointment[]
-  onAppointmentClick: (appointment: CalendarAppointment) => void
-  onDateClick?: (date: Date) => void
+  appointments: Appointment[]
+  onAppointmentClick: (appointment: Appointment) => void
+  onDayClick: (date: Date) => void
+  holidays: Holiday[]
+  businessHours: BusinessHours[]
 }
 
-export function MonthView({ currentDate, appointments, onAppointmentClick, onDateClick }: MonthViewProps) {
+export function MonthView({ currentDate, appointments, onAppointmentClick, onDayClick, holidays, businessHours }: MonthViewProps) {
   const monthStart = startOfMonth(currentDate)
   const monthEnd = endOfMonth(currentDate)
   const calendarStart = startOfWeek(monthStart, { locale: ja })
@@ -72,7 +74,7 @@ export function MonthView({ currentDate, appointments, onAppointmentClick, onDat
             <div 
               key={i} 
               className={`bg-white p-2 min-h-[120px] cursor-pointer hover:bg-gray-50 transition-colors ${!isCurrentMonth ? "text-gray-400" : ""}`}
-              onClick={() => onDateClick?.(day)}
+              onClick={() => onDayClick(day)}
             >
               <div className="font-medium mb-1">{format(day, "d")}</div>
               <div className="flex items-center gap-2 mb-2 text-xs">
