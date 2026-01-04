@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, Search, User, Phone, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Patient, Staff, Appointment } from "@/lib/types"
-import { getPatientRiskScore } from "@/lib/db"
+import { getPatientRiskScore, checkAppointmentConflict } from "@/lib/db"
 
 /*
   改善点:
@@ -231,22 +231,15 @@ export function AppointmentModal({
         formData.start_time < formData.end_time
       ) {
         try {
-          const response = await fetch("/api/appointments/check-conflict", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              date: formData.date,
-              start_time: formData.start_time,
-              end_time: formData.end_time,
-              staff_id: formData.staff_id,
-              chair_number: formData.chair_number,
-              exclude_id: appointment?.id,
-            }),
-          })
-          if (response.ok) {
-            const data = await response.json()
-            setCapacityCheck(data)
-          }
+          const result = await checkAppointmentConflict(
+            formData.date,
+            formData.start_time,
+            formData.end_time,
+            formData.staff_id,
+            formData.chair_number,
+            appointment?.id,
+          )
+          setCapacityCheck(result)
         } catch (error) {
           console.error("Failed to check capacity:", error)
         }
