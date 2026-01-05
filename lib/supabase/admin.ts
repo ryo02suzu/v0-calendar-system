@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js"
+import { validateSupabaseEnv, EnvConfigError } from "@/lib/env-validation"
 
 // Service Role Keyを使用してRLSをバイパスするクライアント。
 // 機密キーを含むため、Route Handler や Server Action などの
@@ -25,21 +26,16 @@ function isBuildTimeEnvironment(): boolean {
 }
 
 function validateEnvVars() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const validation = validateSupabaseEnv()
 
   // Allow build-time to proceed without env vars
   // Validation will happen at runtime when the client is actually used
-  if (!supabaseUrl || !serviceRoleKey) {
-    const missing = []
-    if (!supabaseUrl) missing.push("NEXT_PUBLIC_SUPABASE_URL")
-    if (!serviceRoleKey) missing.push("SUPABASE_SERVICE_ROLE_KEY")
-
+  if (!validation.isValid) {
     // During build time (not runtime), use placeholder values
     // This allows `next build` to succeed on Vercel even without env vars
     if (isBuildTimeEnvironment()) {
       console.warn(
-        `Missing environment variables during build: ${missing.join(", ")}. ` +
+        `Missing environment variables during build. ` +
         `This is expected during build. Ensure they are set at runtime.`
       )
       return {
@@ -48,22 +44,16 @@ function validateEnvVars() {
       }
     }
 
-    throw new Error(
-      `Missing required environment variables: ${missing.join(", ")}. ` +
-        `Please set these in your .env.local file or deployment environment.`
+    throw new EnvConfigError(
+      validation.error?.details || 'Invalid environment configuration',
+      validation.error?.message
     )
   }
 
-  // Basic validation of URL format
-  try {
-    new URL(supabaseUrl)
-  } catch {
-    throw new Error(
-      `Invalid NEXT_PUBLIC_SUPABASE_URL: "${supabaseUrl}". Must be a valid URL.`
-    )
+  return { 
+    supabaseUrl: validation.supabaseUrl!,
+    serviceRoleKey: validation.serviceRoleKey!
   }
-
-  return { supabaseUrl, serviceRoleKey }
 }
 
 const { supabaseUrl, serviceRoleKey } = validateEnvVars()
