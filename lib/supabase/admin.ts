@@ -25,8 +25,9 @@ function isBuildTimeEnvironment(): boolean {
 }
 
 function validateEnvVars() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  // Trim whitespace from environment variables to handle accidental spaces
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
 
   // Allow build-time to proceed without env vars
   // Validation will happen at runtime when the client is actually used
@@ -56,10 +57,16 @@ function validateEnvVars() {
 
   // Basic validation of URL format
   try {
-    new URL(supabaseUrl)
-  } catch {
+    const url = new URL(supabaseUrl)
+    // Ensure URL is using https protocol for security
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      throw new Error('URL must use http or https protocol')
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Invalid URL format'
     throw new Error(
-      `Invalid NEXT_PUBLIC_SUPABASE_URL: "${supabaseUrl}". Must be a valid URL.`
+      `Invalid NEXT_PUBLIC_SUPABASE_URL: "${supabaseUrl}". ${errorMessage}. ` +
+      `Please ensure the URL is properly formatted without spaces or special characters.`
     )
   }
 
