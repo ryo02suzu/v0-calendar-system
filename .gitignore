@@ -2,6 +2,7 @@ node_modules
 .next
 .env
 .env.*
+!.env.example
 .DS_Store
 pnpm-debug.log*
 next-env.d.ts

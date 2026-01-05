@@ -17,6 +17,7 @@ export interface EnvValidationResult {
   isValid: boolean
   supabaseUrl?: string
   serviceRoleKey?: string
+  anonKey?: string
   error?: {
     message: string
     details: string
@@ -31,8 +32,9 @@ export function validateSupabaseEnv(): EnvValidationResult {
   // Trim whitespace from environment variables to handle accidental spaces
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
 
-  // Check for missing variables
+  // Check for missing required variables
   if (!supabaseUrl || !serviceRoleKey) {
     const missing = []
     if (!supabaseUrl) missing.push("NEXT_PUBLIC_SUPABASE_URL")
@@ -74,7 +76,8 @@ export function validateSupabaseEnv(): EnvValidationResult {
     return {
       isValid: true,
       supabaseUrl,
-      serviceRoleKey
+      serviceRoleKey,
+      anonKey
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Invalid URL format'

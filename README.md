@@ -68,6 +68,7 @@ Create a `.env.local` file in the project root:
 # Supabase Configuration (required)
 # Get these from your Supabase project Settings > API
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # HTTP Basic Authentication (optional for development, required for production)
@@ -84,8 +85,9 @@ CSRF_SECRET=your-random-secret-change-in-production
 
 **Important Notes:**
 - `NEXT_PUBLIC_SUPABASE_URL` must be a valid URL like `https://<project-ref>.supabase.co` **without a trailing slash**
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` is the public anonymous key (optional - included for compatibility and future client-side features)
 - `SUPABASE_SERVICE_ROLE_KEY` is the secret service_role key (not the anon/public key) - this app uses server-side only authentication
-- The app does NOT require `NEXT_PUBLIC_SUPABASE_ANON_KEY` as all database access is server-side
+- The app currently performs all database access server-side using the service role key
 
 ### 4. Run Locally
 
@@ -130,7 +132,8 @@ This section provides step-by-step instructions for deploying the application to
    | Variable Name | Value | Required | Notes |
    |---------------|-------|----------|-------|
    | `NEXT_PUBLIC_SUPABASE_URL` | `https://<project-ref>.supabase.co` | ✅ Yes | Get from Supabase Settings > API. No trailing slash! |
-   | `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` (secret key) | ✅ Yes | Get from Supabase Settings > API. Use service_role key, NOT anon key! |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...` (anon key) | 💡 Optional | Get from Supabase Settings > API. Safe to expose publicly. |
+   | `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` (service_role key) | ✅ Yes | Get from Supabase Settings > API. Use service_role key, NOT anon key! |
    | `DASHBOARD_BASIC_AUTH_USER` | `admin` (or your choice) | ⚠️ Recommended | Username for HTTP Basic Auth. Required for production security. |
    | `DASHBOARD_BASIC_AUTH_PASSWORD` | A strong password | ⚠️ Recommended | Password for HTTP Basic Auth. Required for production security. |
 
