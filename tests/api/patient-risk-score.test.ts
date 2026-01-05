@@ -193,8 +193,10 @@ describe('GET /api/patients/[id]/risk-score', () => {
       )
     })
 
-    it('should return 503 when error is related to environment configuration', async () => {
-      const envError = new Error('Missing required environment variables: NEXT_PUBLIC_SUPABASE_URL')
+    it('should return 503 when error is EnvConfigError', async () => {
+      // Import the custom error type
+      const { EnvConfigError } = await import('@/lib/env-validation')
+      const envError = new EnvConfigError('Invalid environment configuration', 'Missing variables')
       mockGetPatientRiskScore.mockRejectedValue(envError)
 
       const request = createRequest()
@@ -204,7 +206,7 @@ describe('GET /api/patients/[id]/risk-score', () => {
       expect(response.status).toBe(503)
       const data = await response.json()
       expect(data).toHaveProperty('error', 'Service configuration error')
-      expect(data).toHaveProperty('details', 'Database connection not properly configured')
+      expect(data.details).toBe('Missing variables')
     })
   })
 

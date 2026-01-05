@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js"
-import { validateSupabaseEnv } from "@/lib/env-validation"
+import { validateSupabaseEnv, EnvConfigError } from "@/lib/env-validation"
 
 // Service Role Keyを使用してRLSをバイパスするクライアント。
 // 機密キーを含むため、Route Handler や Server Action などの
@@ -44,7 +44,10 @@ function validateEnvVars() {
       }
     }
 
-    throw new Error(validation.error?.details || 'Invalid environment configuration')
+    throw new EnvConfigError(
+      validation.error?.details || 'Invalid environment configuration',
+      validation.error?.message
+    )
   }
 
   return { 

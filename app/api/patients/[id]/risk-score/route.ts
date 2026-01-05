@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { getPatientRiskScore } from "@/lib/db"
-import { validateSupabaseEnv } from "@/lib/env-validation"
+import { validateSupabaseEnv, EnvConfigError } from "@/lib/env-validation"
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -24,16 +24,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   } catch (error) {
     console.error("Error getting patient risk score:", error)
     
-    // Check if error is related to environment configuration
-    if (error instanceof Error && (
-      error.message.includes("NEXT_PUBLIC_SUPABASE_URL") ||
-      error.message.includes("SUPABASE_SERVICE_ROLE_KEY") ||
-      error.message.includes("environment")
-    )) {
+    // Check if error is related to environment configuration using custom error type
+    if (error instanceof EnvConfigError) {
       return NextResponse.json(
         { 
           error: "Service configuration error",
-          details: "Database connection not properly configured"
+          details: error.details || "Database connection not properly configured"
         }, 
         { status: 503 }
       )

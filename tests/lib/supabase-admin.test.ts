@@ -12,7 +12,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 describe('lib/supabase/admin URL validation', () => {
   const originalEnv = { ...process.env }
-  const originalNextPhase = process.env.NEXT_PHASE
 
   beforeEach(() => {
     // Clear module cache to test fresh imports
@@ -28,7 +27,6 @@ describe('lib/supabase/admin URL validation', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     process.env = { ...originalEnv }
-    process.env.NEXT_PHASE = originalNextPhase
   })
 
   describe('URL trimming', () => {

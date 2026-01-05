@@ -3,6 +3,16 @@
  * Provides shared validation logic for Supabase configuration
  */
 
+/**
+ * Custom error class for environment configuration issues
+ */
+export class EnvConfigError extends Error {
+  constructor(message: string, public details?: string) {
+    super(message)
+    this.name = 'EnvConfigError'
+  }
+}
+
 export interface EnvValidationResult {
   isValid: boolean
   supabaseUrl?: string
@@ -54,9 +64,10 @@ export function validateSupabaseEnv(): EnvValidationResult {
 
     // Warn about HTTP in production
     if (url.protocol === 'http:' && process.env.NODE_ENV === 'production') {
-      console.warn(
-        'WARNING: Using HTTP protocol for Supabase URL in production environment. ' +
-        'This is insecure and should only be used for local development.'
+      console.error(
+        'SECURITY WARNING: Using HTTP protocol for Supabase URL in production environment. ' +
+        'This is insecure and should only be used for local development. ' +
+        'Please update to use HTTPS.'
       )
     }
 
