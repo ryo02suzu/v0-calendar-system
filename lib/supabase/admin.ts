@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js"
+import { validateSupabaseEnv } from "@/lib/env-validation"
 
 // Service Role Keyを使用してRLSをバイパスするクライアント。
 // 機密キーを含むため、Route Handler や Server Action などの
@@ -25,22 +26,16 @@ function isBuildTimeEnvironment(): boolean {
 }
 
 function validateEnvVars() {
-  // Trim whitespace from environment variables to handle accidental spaces
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  const validation = validateSupabaseEnv()
 
   // Allow build-time to proceed without env vars
   // Validation will happen at runtime when the client is actually used
-  if (!supabaseUrl || !serviceRoleKey) {
-    const missing = []
-    if (!supabaseUrl) missing.push("NEXT_PUBLIC_SUPABASE_URL")
-    if (!serviceRoleKey) missing.push("SUPABASE_SERVICE_ROLE_KEY")
-
+  if (!validation.isValid) {
     // During build time (not runtime), use placeholder values
     // This allows `next build` to succeed on Vercel even without env vars
     if (isBuildTimeEnvironment()) {
       console.warn(
-        `Missing environment variables during build: ${missing.join(", ")}. ` +
+        `Missing environment variables during build. ` +
         `This is expected during build. Ensure they are set at runtime.`
       )
       return {
@@ -49,28 +44,13 @@ function validateEnvVars() {
       }
     }
 
-    throw new Error(
-      `Missing required environment variables: ${missing.join(", ")}. ` +
-        `Please set these in your .env.local file or deployment environment.`
-    )
+    throw new Error(validation.error?.details || 'Invalid environment configuration')
   }
 
-  // Basic validation of URL format
-  try {
-    const url = new URL(supabaseUrl)
-    // Ensure URL is using https protocol for security
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-      throw new Error('URL must use http or https protocol')
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Invalid URL format'
-    throw new Error(
-      `Invalid NEXT_PUBLIC_SUPABASE_URL: "${supabaseUrl}". ${errorMessage}. ` +
-      `Please ensure the URL is properly formatted without spaces or special characters.`
-    )
+  return { 
+    supabaseUrl: validation.supabaseUrl!,
+    serviceRoleKey: validation.serviceRoleKey!
   }
-
-  return { supabaseUrl, serviceRoleKey }
 }
 
 const { supabaseUrl, serviceRoleKey } = validateEnvVars()

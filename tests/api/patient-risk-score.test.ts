@@ -130,7 +130,9 @@ describe('GET /api/patients/[id]/risk-score', () => {
       expect(response.status).toBe(503)
       const data = await response.json()
       expect(data).toHaveProperty('error', 'Service configuration error')
-      expect(data).toHaveProperty('details', 'Invalid Supabase URL configuration')
+      expect(data).toHaveProperty('details')
+      expect(data.details).toContain('Invalid NEXT_PUBLIC_SUPABASE_URL')
+      expect(data.details).toContain('without spaces')
       expect(console.error).toHaveBeenCalled()
     })
 
@@ -144,7 +146,8 @@ describe('GET /api/patients/[id]/risk-score', () => {
       expect(response.status).toBe(503)
       const data = await response.json()
       expect(data).toHaveProperty('error', 'Service configuration error')
-      expect(data).toHaveProperty('details', 'Invalid Supabase URL configuration')
+      expect(data).toHaveProperty('details')
+      expect(data.details).toContain('Invalid NEXT_PUBLIC_SUPABASE_URL')
     })
 
     it('should trim whitespace from environment variables', async () => {
