@@ -28,7 +28,7 @@ if (fs.existsSync(envPath)) {
     
     // Parse KEY=VALUE format
     // Handle both quoted and unquoted values
-    const match = trimmedLine.match(/^([^=:#]+)=(.*)$/);
+    const match = trimmedLine.match(/^([^=]+)=(.*)$/);
     if (match) {
       const key = match[1].trim();
       let value = match[2].trim();
@@ -108,7 +108,11 @@ if (!serviceRoleKey) {
     
     // Try to decode payload to verify it's a proper JWT
     try {
-      const decodedPayload = JSON.parse(Buffer.from(payload, 'base64').toString());
+      // JWT uses base64url encoding, convert to standard base64
+      const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+      // Add padding if needed
+      const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+      const decodedPayload = JSON.parse(Buffer.from(padded, 'base64').toString());
       
       if (decodedPayload.role === 'service_role') {
         console.log('✅ JWT role: service_role (correct)');
@@ -160,11 +164,8 @@ console.log('='.repeat(60));
 if (errors.length === 0 && warnings.length === 0) {
   console.log('\n✅ All environment variables are correctly configured!');
   console.log('\nNext steps:');
-  console.log('1. Run SQL migrations in Supabase SQL Editor:');
-  console.log('   - scripts/001_create_tables.sql');
-  console.log('   - scripts/002_add_resecon_settings.sql');
-  console.log('   - scripts/003_add_reminder_settings.sql');
-  console.log('   - scripts/005_add_treatment_type_field.sql');
+  console.log('1. Run SQL migrations in Supabase SQL Editor');
+  console.log('   See scripts/README.md for detailed instructions');
   console.log('2. Start the application: npm run dev');
   console.log('3. Open http://localhost:3000\n');
   process.exit(0);
