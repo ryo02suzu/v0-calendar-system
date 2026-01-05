@@ -49,6 +49,30 @@ export function validateSupabaseEnv(): EnvValidationResult {
     }
   }
 
+  // Validate JWT format for service role key
+  const jwtParts = serviceRoleKey.split('.')
+  if (jwtParts.length !== 3) {
+    return {
+      isValid: false,
+      error: {
+        message: "Service configuration error",
+        details: `Invalid SUPABASE_SERVICE_ROLE_KEY: JWT must have 3 parts (header.payload.signature), found ${jwtParts.length}. Please verify the key is copied completely from Supabase Settings > API.`
+      }
+    }
+  }
+
+  // Validate signature length (JWT signatures with HS256 are typically 43 characters in base64url)
+  const signature = jwtParts[2]
+  if (signature.length < 20) {
+    return {
+      isValid: false,
+      error: {
+        message: "Service configuration error",
+        details: `Invalid SUPABASE_SERVICE_ROLE_KEY: Signature appears truncated (${signature.length} characters). JWT signatures should be approximately 43 characters. Please copy the complete key from Supabase Settings > API > service_role key.`
+      }
+    }
+  }
+
   // Validate URL format
   try {
     const url = new URL(supabaseUrl)
