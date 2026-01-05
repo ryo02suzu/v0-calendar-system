@@ -88,6 +88,13 @@ CSRF_SECRET=your-random-secret-change-in-production
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` is the public anonymous key (optional - included for compatibility and future client-side features)
 - `SUPABASE_SERVICE_ROLE_KEY` is the secret service_role key (not the anon/public key) - this app uses server-side only authentication
 - The app currently performs all database access server-side using the service role key
+- **Make sure to copy the complete key** - JWT keys are typically 200+ characters long
+
+**Validate your configuration:**
+```bash
+npm run db:validate
+```
+This will check if your environment variables are correctly configured and provide specific guidance for any issues.
 
 ### 4. Run Locally
 
@@ -382,9 +389,27 @@ pnpm install
 
 ## Troubleshooting
 
-### "Missing required environment variables"
+### Quick Diagnosis
 
-Make sure you've set `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in your `.env.local` file or deployment environment.
+Run the environment validation script to check your configuration:
+```bash
+npm run db:validate
+```
+
+This will identify issues with your environment variables and provide specific guidance.
+
+### "Missing required environment variables" or "TypeError: fetch failed"
+
+**Most common cause**: Truncated or invalid `SUPABASE_SERVICE_ROLE_KEY`
+
+**Solution**:
+1. Go to your Supabase project: Settings > API
+2. Copy the **complete** service_role key (not the anon key)
+3. Make sure you copy the entire key (200+ characters)
+4. Update `.env.local` with the complete key
+5. Restart your dev server
+
+See `TROUBLESHOOTING.md` for detailed guidance.
 
 ### "データベーステーブルが存在しません"
 
