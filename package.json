@@ -8,7 +8,11 @@
     "dev": "next dev",
     "lint": "eslint .",
     "start": "next start",
-    "db:migrate": "echo 'Run SQL scripts from scripts/ directory in Supabase SQL Editor or use: npx supabase db push'"
+    "db:migrate": "echo 'Run SQL scripts from scripts/ directory in Supabase SQL Editor or use: npx supabase db push'",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@hookform/resolvers": "3.10.0",
@@ -65,13 +69,15 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.9",
-    "@types/node": "22.0.0",
+    "@types/node": "^22.0.0",
     "@types/react": "19.0.0",
     "@types/react-dom": "19.0.0",
+    "@vitest/ui": "^4.0.16",
     "eslint": "^9.39.1",
     "postcss": "8.5.0",
     "tailwindcss": "4.1.9",
     "tw-animate-css": "1.3.3",
-    "typescript": "5.0.2"
+    "typescript": "5.0.2",
+    "vitest": "^4.0.16"
   }
 }

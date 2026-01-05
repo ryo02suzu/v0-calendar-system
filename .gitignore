@@ -6,3 +6,7 @@ node_modules
 pnpm-debug.log*
 next-env.d.ts
 tsconfig.tsbuildinfo
+
+# Test coverage
+coverage/
+.vitest/
