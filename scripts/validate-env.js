@@ -10,15 +10,35 @@
 const fs = require('fs');
 const path = require('path');
 
+// Validation constants
+const MIN_JWT_SIGNATURE_LENGTH = 20;  // Minimum to be considered valid
+const WARN_JWT_SIGNATURE_LENGTH = 40; // Warn if below this
+const EXPECTED_JWT_SIGNATURE_LENGTH = 43; // Typical HS256 signature length
+
 // Load environment variables from .env.local
 const envPath = path.join(process.cwd(), '.env.local');
 if (fs.existsSync(envPath)) {
   const envContent = fs.readFileSync(envPath, 'utf-8');
   envContent.split('\n').forEach(line => {
-    const match = line.match(/^([^=:#]+)=(.*)$/);
+    // Skip comments and empty lines
+    const trimmedLine = line.trim();
+    if (!trimmedLine || trimmedLine.startsWith('#')) {
+      return;
+    }
+    
+    // Parse KEY=VALUE format
+    // Handle both quoted and unquoted values
+    const match = trimmedLine.match(/^([^=:#]+)=(.*)$/);
     if (match) {
       const key = match[1].trim();
-      const value = match[2].trim();
+      let value = match[2].trim();
+      
+      // Remove surrounding quotes if present
+      if ((value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      
       if (!process.env[key]) {
         process.env[key] = value;
       }
@@ -76,12 +96,12 @@ if (!serviceRoleKey) {
     console.log(`   Payload length: ${payload.length} characters`);
     console.log(`   Signature length: ${signature.length} characters`);
     
-    if (signature.length < 20) {
-      errors.push(`❌ SUPABASE_SERVICE_ROLE_KEY: Signature appears truncated (${signature.length} chars, expected ~43)`);
+    if (signature.length < MIN_JWT_SIGNATURE_LENGTH) {
+      errors.push(`❌ SUPABASE_SERVICE_ROLE_KEY: Signature appears truncated (${signature.length} chars, expected ~${EXPECTED_JWT_SIGNATURE_LENGTH})`);
       console.log('\n   🔧 FIX: Copy the complete service_role key from Supabase Settings > API');
       console.log('   The key should be 200+ characters long total.');
-    } else if (signature.length < 40) {
-      warnings.push(`⚠️  SUPABASE_SERVICE_ROLE_KEY: Signature seems short (${signature.length} chars, typically ~43)`);
+    } else if (signature.length < WARN_JWT_SIGNATURE_LENGTH) {
+      warnings.push(`⚠️  SUPABASE_SERVICE_ROLE_KEY: Signature seems short (${signature.length} chars, typically ~${EXPECTED_JWT_SIGNATURE_LENGTH})`);
     } else {
       console.log('✅ Signature length looks good');
     }
@@ -110,7 +130,11 @@ if (!serviceRoleKey) {
         }
       }
     } catch (e) {
-      warnings.push('⚠️  Could not decode JWT payload (may be invalid base64)');
+      if (e instanceof SyntaxError) {
+        warnings.push('⚠️  Could not parse JWT payload: Invalid JSON structure');
+      } else {
+        warnings.push(`⚠️  Could not decode JWT payload: ${e.message}`);
+      }
     }
   }
 }
