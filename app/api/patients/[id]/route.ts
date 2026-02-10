@@ -5,7 +5,7 @@ import { updatePatient, deletePatient } from "@/lib/db"
 import { patientUpdateSchema } from "@/lib/validations/patient"
 
 type RouteContext = {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
@@ -13,7 +13,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     const json = await request.json()
     const payload = patientUpdateSchema.parse(json)
 
-    const patient = await updatePatient(params.id, payload)
+    const { id } = await params
+    const patient = await updatePatient(id, payload)
     return NextResponse.json({ data: patient })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -27,7 +28,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
 export async function DELETE(request: NextRequest, { params }: RouteContext) {
   try {
-    await deletePatient(params.id)
+    const { id } = await params
+    await deletePatient(id)
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Failed to delete patient:", error)
