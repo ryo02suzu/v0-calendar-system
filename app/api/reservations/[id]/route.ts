@@ -39,7 +39,7 @@ const updateSchema = z
   })
 
 type RouteContext = {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
@@ -74,7 +74,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
     const { patient: _patient, ...rest } = updates
 
-    const data = await updateAppointmentRecord(params.id, rest)
+    const { id } = await params
+    const data = await updateAppointmentRecord(id, rest)
     return NextResponse.json({ data: serializeAppointmentForApi(data) })
   } catch (error) {
     if (error instanceof AppointmentConflictError) {
@@ -107,7 +108,8 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
   }
 
   try {
-    const data = await cancelAppointmentRecord(params.id)
+    const { id } = await params
+    const data = await cancelAppointmentRecord(id)
     return NextResponse.json({ data: serializeAppointmentForApi(data) })
   } catch (error) {
     if (error instanceof AppointmentNotFoundError) {

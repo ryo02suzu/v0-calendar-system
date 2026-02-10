@@ -80,7 +80,7 @@ export function Settings() {
   function ensureAllDays(hoursFromDB: any[]): any[] {
     const result: any[] = []
     for (let day = 0; day <= 6; day++) {
-      const existing = hoursFromDB.find((h) => h.day_of_week === day)
+      const existing = hoursFromDB.find((h) => Number(h.day_of_week) === day)
       if (existing) {
         result.push(existing)
       } else {
@@ -100,7 +100,7 @@ export function Settings() {
   function updateDay(index: number, patch: Partial<any>) {
     setBusinessHours((prev) => {
       const updated = [...prev]
-      const target = updated.find((h) => h.day_of_week === index)
+      const target = updated.find((h) => Number(h.day_of_week) === index)
       if (target) {
         Object.assign(target, patch)
       }
@@ -627,7 +627,7 @@ export function Settings() {
               <p className="text-sm text-gray-600 mb-4">患者予約ページに表示される診療時間</p>
               <div className="space-y-2">
                 {["日", "月", "火", "水", "木", "金", "土"].map((day, index) => {
-                  const hours = businessHours.find((h) => h.day_of_week === index)
+                  const hours = businessHours.find((h) => Number(h.day_of_week) === index)
                   return (
                     <div key={index} className="flex items-center gap-4 p-3 border rounded">
                       <p className="w-8 font-medium">{day}</p>

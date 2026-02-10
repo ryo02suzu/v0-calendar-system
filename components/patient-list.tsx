@@ -15,7 +15,7 @@ import type { Patient } from "@/lib/types"
 
 type PatientFormState = {
   name: string
-  kana?: string
+  name_kana?: string
   phone: string
   email?: string
   date_of_birth?: string
@@ -32,7 +32,7 @@ export function PatientList() {
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null)
   const [formData, setFormData] = useState<PatientFormState>({
     name: "",
-    kana: "",
+    name_kana: "",
     phone: "",
     email: "",
     date_of_birth: "",
@@ -132,7 +132,7 @@ export function PatientList() {
       setEditingPatient(patient)
       setFormData({
         name: patient.name,
-        kana: patient.kana || "",
+        name_kana: patient.name_kana || "",
         phone: patient.phone,
         email: patient.email || "",
         date_of_birth: patient.date_of_birth || "",
@@ -144,7 +144,7 @@ export function PatientList() {
       setEditingPatient(null)
       setFormData({
         name: "",
-        kana: "",
+        name_kana: "",
         phone: "",
         email: "",
         date_of_birth: "",
@@ -289,7 +289,7 @@ export function PatientList() {
                       : "-"}
                   </TableCell>
                   <TableCell>{highlightText(patient.name, searchTerm)}</TableCell>
-                  <TableCell className="text-gray-600">{patient.kana || "-"}</TableCell>
+                  <TableCell className="text-gray-600">{patient.name_kana || "-"}</TableCell>
                   <TableCell>{patient.date_of_birth || "-"}</TableCell>
                   <TableCell>{patient.gender || "-"}</TableCell>
                   <TableCell>
@@ -347,8 +347,8 @@ export function PatientList() {
               <div>
                 <Label>フリガナ</Label>
                 <Input
-                  value={formData.kana || ""}
-                  onChange={(e) => setFormData({ ...formData, kana: e.target.value })}
+                  value={formData.name_kana || ""}
+                  onChange={(e) => setFormData({ ...formData, name_kana: e.target.value })}
                   placeholder="ヤマダ タロウ"
                 />
               </div>

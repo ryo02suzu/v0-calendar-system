@@ -291,8 +291,8 @@ export function Header() {
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="font-medium text-sm text-gray-900">{patient.name}</div>
-                            {patient.kana && (
-                              <div className="text-xs text-gray-600">{patient.kana}</div>
+                            {patient.name_kana && (
+                              <div className="text-xs text-gray-600">{patient.name_kana}</div>
                             )}
                             <div className="text-xs text-gray-500 mt-1">
                               {patient.phone}

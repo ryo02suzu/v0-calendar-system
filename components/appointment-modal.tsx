@@ -136,8 +136,7 @@ export function AppointmentModal({
 
     const matches = patients.filter((p) => {
       const nameField = p.name || ""
-      // kana は mapPatientFromDb 後のフィールド。万一 name_kana が残っていても対応
-      const kanaField = (p as any).kana || (p as any).name_kana || ""
+      const kanaField = p.name_kana || ""
       const phoneField = (p.phone || "").replace(/[\s\-]/g, "")
       const numberField = (p.patient_number || "").replace(/[\s\-]/g, "")
 
@@ -165,7 +164,7 @@ export function AppointmentModal({
         patients.slice(0, 5).map((p) => ({
           id: p.id,
           name: p.name,
-          kana: (p as any).kana || (p as any).name_kana,
+          name_kana: p.name_kana,
           phone: p.phone,
           patient_number: p.patient_number,
         })),

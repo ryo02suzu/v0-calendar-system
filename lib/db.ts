@@ -2,7 +2,7 @@
 
 import { CLINIC_ID } from "./constants"
 import { supabaseAdmin } from "./supabase/admin"
-import type { Patient, WaitlistEntry } from "./types"
+import type { Patient, WaitlistEntry, Staff, Service, MedicalRecord } from "./types"
 
 // 患者関連
 export async function getPatients(): Promise<Patient[]> {
@@ -94,7 +94,6 @@ export async function deletePatient(id: string) {
  * UI → DB のキー変換
  */
 const PATIENT_APP_TO_DB_FIELD_MAP: Record<string, string> = {
-  kana: "name_kana",
   date_of_birth: "birth_date",
   medical_notes: "notes",
 }
@@ -103,7 +102,6 @@ const PATIENT_APP_TO_DB_FIELD_MAP: Record<string, string> = {
  * DB → UI のキー変換
  */
 const PATIENT_DB_TO_APP_FIELD_MAP: Record<string, string> = {
-  name_kana: "kana",
   birth_date: "date_of_birth",
   notes: "medical_notes",
 }
@@ -158,12 +156,14 @@ export async function getStaff() {
   }
 }
 
-export async function createStaff(staff: any) {
+export async function createStaff(staff: Partial<Staff>) {
   try {
+    const { id, clinic_id, created_at, updated_at, ...insertPayload } = staff
+
     const { data, error } = await supabaseAdmin
       .from("staff")
       .insert({
-        ...staff,
+        ...insertPayload,
         clinic_id: CLINIC_ID,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -179,12 +179,14 @@ export async function createStaff(staff: any) {
   }
 }
 
-export async function updateStaff(id: string, staff: any) {
+export async function updateStaff(id: string, staff: Partial<Staff>) {
   try {
+    const { id: _id, clinic_id, created_at, updated_at, ...updatePayload } = staff
+
     const { data, error } = await supabaseAdmin
       .from("staff")
       .update({
-        ...staff,
+        ...updatePayload,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
@@ -236,11 +238,14 @@ export async function getMedicalRecords(patientId?: string) {
     }
 
     const formattedData =
-      data?.map((record) => ({
-        ...record,
-        staff: record.staff,
-        patient: record.patients,
-      })) || []
+      data?.map((record) => {
+        const { patients, ...rest } = record
+        return {
+          ...rest,
+          staff: record.staff,
+          patient: patients,
+        }
+      }) || []
 
     return formattedData
   } catch (error) {
@@ -249,12 +254,14 @@ export async function getMedicalRecords(patientId?: string) {
   }
 }
 
-export async function createMedicalRecord(record: any) {
+export async function createMedicalRecord(record: Partial<MedicalRecord>) {
   try {
+    const { id, clinic_id, created_at, updated_at, staff, patient, ...insertPayload } = record
+
     const { data, error } = await supabaseAdmin
       .from("medical_records")
       .insert({
-        ...record,
+        ...insertPayload,
         clinic_id: CLINIC_ID,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -287,12 +294,14 @@ export async function getServices() {
   }
 }
 
-export async function createService(service: any) {
+export async function createService(service: Partial<Service>) {
   try {
+    const { id, clinic_id, created_at, updated_at, ...insertPayload } = service
+
     const { data, error } = await supabaseAdmin
       .from("services")
       .insert({
-        ...service,
+        ...insertPayload,
         clinic_id: CLINIC_ID,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -308,12 +317,14 @@ export async function createService(service: any) {
   }
 }
 
-export async function updateService(id: string, service: any) {
+export async function updateService(id: string, service: Partial<Service>) {
   try {
+    const { id: _id, clinic_id, created_at, updated_at, ...updatePayload } = service
+
     const { data, error } = await supabaseAdmin
       .from("services")
       .update({
-        ...service,
+        ...updatePayload,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
@@ -380,8 +391,24 @@ export async function updateBusinessHours(hoursOrId: any[] | string, singleHour?
     // Otherwise, treat as array (existing behavior)
     const hours = hoursOrId as any[]
     
+    // バックアップを取得してからDELETE→INSERTを実行
+    const { data: backup, error: backupError } = await supabaseAdmin
+      .from("business_hours")
+      .select("*")
+      .eq("clinic_id", CLINIC_ID)
+
+    if (backupError) {
+      console.error("Error backing up business hours:", backupError)
+      throw backupError
+    }
+    
     // 既存のデータを削除
-    await supabaseAdmin.from("business_hours").delete().eq("clinic_id", CLINIC_ID)
+    const { error: deleteError } = await supabaseAdmin.from("business_hours").delete().eq("clinic_id", CLINIC_ID)
+    
+    if (deleteError) {
+      console.error("Error deleting business hours:", deleteError)
+      throw deleteError
+    }
 
     // 新しいデータを挿入
     const hoursWithClinic = hours.map((h) => ({
@@ -393,7 +420,14 @@ export async function updateBusinessHours(hoursOrId: any[] | string, singleHour?
 
     const { data, error } = await supabaseAdmin.from("business_hours").insert(hoursWithClinic).select()
 
-    if (error) throw error
+    if (error) {
+      // INSERT失敗時、バックアップをリストア
+      console.error("Error inserting business hours, restoring backup:", error)
+      if (backup && backup.length > 0) {
+        await supabaseAdmin.from("business_hours").insert(backup)
+      }
+      throw error
+    }
     return data
   } catch (error) {
     console.error("Error updating business hours:", error)
@@ -420,10 +454,12 @@ export async function getHolidays() {
 
 export async function createHoliday(holiday: any) {
   try {
+    const { id, clinic_id, created_at, ...insertPayload } = holiday
+
     const { data, error } = await supabaseAdmin
       .from("holidays")
       .insert({
-        ...holiday,
+        ...insertPayload,
         clinic_id: CLINIC_ID,
         created_at: new Date().toISOString(),
       })
@@ -481,10 +517,12 @@ export async function getAppointments() {
 
 export async function createAppointment(appointment: any) {
   try {
+    const { patient, staff, service, ...insertPayload } = appointment
+
     const { data, error } = await supabaseAdmin
       .from("appointments")
       .insert({
-        ...appointment,
+        ...insertPayload,
         clinic_id: CLINIC_ID,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -514,10 +552,12 @@ export async function createAppointment(appointment: any) {
 
 export async function updateAppointment(id: string, appointment: any) {
   try {
+    const { patient, staff, service, ...updatePayload } = appointment
+
     const { data, error } = await supabaseAdmin
       .from("appointments")
       .update({
-        ...appointment,
+        ...updatePayload,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
@@ -596,10 +636,12 @@ export async function getClinicSettings() {
 
 export async function updateClinicSettings(settings: any) {
   try {
+    const { id, clinic_id, created_at, updated_at, ...updatePayload } = settings
+
     const { data, error } = await supabaseAdmin
       .from("clinic_settings")
       .update({
-        ...settings,
+        ...updatePayload,
         updated_at: new Date().toISOString(),
       })
       .eq("clinic_id", CLINIC_ID)
@@ -732,10 +774,12 @@ export async function getClinic() {
 
 export async function updateClinic(clinic: any) {
   try {
+    const { id, created_at, updated_at, ...updatePayload } = clinic
+
     const { data, error } = await supabaseAdmin
       .from("clinics")
       .update({
-        ...clinic,
+        ...updatePayload,
         updated_at: new Date().toISOString(),
       })
       .eq("id", CLINIC_ID)
@@ -1037,7 +1081,7 @@ export async function initializeClinic() {
     const patientsToInsert = patientNames.map((p, i) => {
       const patientNum = (i + 1).toString().padStart(3, "0")
       return {
-        id: `00000000-0000-0000-0000-0000000000${(31 + i).toString().padStart(2, "0")}`,
+        id: `00000000-0000-0000-0000-${(31 + i).toString().padStart(12, "0")}`,
         clinic_id: CLINIC_ID,
         patient_number: `P${patientNum}`,
         name: p.name,
@@ -1123,7 +1167,7 @@ export async function initializeClinic() {
           }
 
           const patientIdx = (dayOffset * 20 + appointmentCount) % 50
-          const patientId = `00000000-0000-0000-0000-0000000000${(31 + patientIdx).toString().padStart(2, "0")}`
+          const patientId = `00000000-0000-0000-0000-${(31 + patientIdx).toString().padStart(12, "0")}`
 
           appointmentsToInsert.push({
             clinic_id: CLINIC_ID,
@@ -1385,7 +1429,7 @@ export async function getPatientRiskScore(patientId: string) {
     if (totalAppointments > 0) {
       const cancellationRate = cancellationCount / totalAppointments
       const noShowRate = noShowCount / totalAppointments
-      riskScore = Math.round((cancellationRate * 50 + noShowRate * 100) * 100)
+      riskScore = Math.round(cancellationRate * 50 + noShowRate * 100)
     }
 
     return {
@@ -1454,7 +1498,7 @@ export async function addToWaitlist(entry: any) {
 // 🆕 フェーズ3: キャンセル待ちから削除
 export async function removeFromWaitlist(id: string) {
   try {
-    const { error } = await supabaseAdmin.from("waitlist").delete().eq("id", id)
+    const { error } = await supabaseAdmin.from("waitlist").delete().eq("id", id).eq("clinic_id", CLINIC_ID)
 
     if (error) throw error
     return { success: true }

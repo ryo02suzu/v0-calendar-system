@@ -77,19 +77,19 @@ export function MonthView({
 
   const isBusinessDay = (date: Date) => {
     const dayOfWeek = date.getDay()
-    const hours = businessHours.find((h) => h.day_of_week === dayOfWeek)
+    const hours = businessHours.find((h) => Number(h.day_of_week) === dayOfWeek)
     return hours ? !hours.is_closed : true
   }
 
   const isMorningClosed = (date: Date) => {
     const dayOfWeek = date.getDay()
-    const hours = businessHours.find((h) => h.day_of_week === dayOfWeek)
+    const hours = businessHours.find((h) => Number(h.day_of_week) === dayOfWeek)
     return hours?.morning_closed || false
   }
 
   const isAfternoonClosed = (date: Date) => {
     const dayOfWeek = date.getDay()
-    const hours = businessHours.find((h) => h.day_of_week === dayOfWeek)
+    const hours = businessHours.find((h) => Number(h.day_of_week) === dayOfWeek)
     return hours?.afternoon_closed || false
   }
 
