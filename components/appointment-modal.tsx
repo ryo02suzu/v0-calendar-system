@@ -11,8 +11,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, Search, User, Phone, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { Patient, Staff, Appointment } from "@/lib/types"
-import { getPatientRiskScore, checkAppointmentConflict } from "@/lib/db"
+import type { Patient, Staff, Appointment, Service, ClinicSettings } from "@/lib/types"
+import { getPatientRiskScore, checkAppointmentConflict, getClinicSettings } from "@/lib/db"
 
 /*
   改善点:
@@ -81,7 +81,7 @@ export function AppointmentModal({
     date: getCurrentDate(),
     start_time: "09:00",
     end_time: "10:00",
-    treatment_type: "定期検診",
+    treatment_type: "",
     status: "confirmed",
     chair_number: 1,
     notes: "",
@@ -95,6 +95,11 @@ export function AppointmentModal({
   const [riskScore, setRiskScore] = useState<any>(null)
   const [capacityCheck, setCapacityCheck] = useState<any>(null)
   const [patientRiskScore, setPatientRiskScore] = useState<any>(null)
+  const [services, setServices] = useState<Service[]>([])
+  const [clinicSettings, setClinicSettings] = useState<ClinicSettings | null>(null)
+  const [autoEndTime, setAutoEndTime] = useState(true) // Track if end_time should be auto-calculated
+  const [autoChair, setAutoChair] = useState(true) // Track if chair should be auto-assigned
+  const [chairNumbers, setChairNumbers] = useState<number[]>([1, 2, 3, 4, 5])
 
   const selectedPatient = useMemo(
     () => patients.find((p) => p.id === formData.patient_id),
@@ -179,6 +184,8 @@ export function AppointmentModal({
   useEffect(() => {
     if (isOpen) {
       loadPatients()
+      loadServices()
+      loadClinicSettings()
       setError(null)
     }
   }, [isOpen])
@@ -195,19 +202,49 @@ export function AppointmentModal({
     }
   }
 
+  const loadServices = async () => {
+    try {
+      const response = await fetch("/api/services", { cache: "no-store" })
+      const json = await response.json()
+      if (!response.ok) throw new Error(json.error || "サービスデータの取得に失敗しました")
+      setServices(json.data || [])
+    } catch (e) {
+      console.error("[v0] Error loading services:", e)
+      setError("サービスデータの読み込みに失敗しました")
+    }
+  }
+
+  const loadClinicSettings = async () => {
+    try {
+      const settings = await getClinicSettings()
+      setClinicSettings(settings)
+      if (settings) {
+        // Generate chair numbers based on clinic settings
+        const chairs = Array.from({ length: settings.chairs_count }, (_, i) => i + 1)
+        setChairNumbers(chairs)
+      }
+    } catch (e) {
+      console.error("[v0] Error loading clinic settings:", e)
+    }
+  }
+
   // 初期化
   useEffect(() => {
     if (appointment) {
       setFormData(appointment)
       setIsNewPatient(false)
+      setAutoEndTime(false) // Existing appointment, don't auto-calculate
+      setAutoChair(false) // Existing appointment, don't auto-assign
     } else {
       const start = initialSlotData?.time || "09:00"
       const endHour = (parseInt(start.split(":")[0]) + 1).toString().padStart(2, "0")
+      // Set initial treatment_type to first service if available
+      const initialTreatment = services.length > 0 ? services[0].name : ""
       setFormData({
         date: initialSlotData?.date || getCurrentDate(),
         start_time: start,
         end_time: `${endHour}:00`,
-        treatment_type: "定期検診",
+        treatment_type: initialTreatment,
         status: "confirmed",
         chair_number: initialSlotData?.chairNumber || 1,
         notes: "",
@@ -215,9 +252,11 @@ export function AppointmentModal({
       })
       setIsNewPatient(false)
       setNewPatientData({ name: "", name_kana: "", phone: "", email: "", date_of_birth: "" })
+      setAutoEndTime(true) // New appointment, enable auto-calculation
+      setAutoChair(true) // New appointment, enable auto-assignment
     }
     setError(null)
-  }, [appointment, staff, initialSlotData])
+  }, [appointment, staff, initialSlotData, services])
 
   // 🆕 Check capacity when date/time/staff/chair changes
   useEffect(() => {
@@ -246,6 +285,82 @@ export function AppointmentModal({
     }
     checkCapacity()
   }, [formData.date, formData.start_time, formData.end_time, formData.staff_id, formData.chair_number, appointment?.id])
+
+  // Helper function to calculate end_time based on start_time and duration
+  const calculateEndTime = (startTime: string, durationMinutes: number): string => {
+    const [hours, minutes] = startTime.split(":").map(Number)
+    const totalMinutes = hours * 60 + minutes + durationMinutes
+    const endHours = Math.floor(totalMinutes / 60)
+    const endMinutes = totalMinutes % 60
+    return `${endHours.toString().padStart(2, "0")}:${endMinutes.toString().padStart(2, "0")}`
+  }
+
+  // Helper function to find available chair
+  const findAvailableChair = async (
+    date: string,
+    startTime: string,
+    endTime: string,
+    staffId: string,
+    excludeId?: string
+  ): Promise<number | null> => {
+    for (const chairNum of chairNumbers) {
+      try {
+        const result = await checkAppointmentConflict(
+          date,
+          startTime,
+          endTime,
+          staffId,
+          chairNum,
+          excludeId
+        )
+        if (result.canBook) {
+          return chairNum
+        }
+      } catch (error) {
+        console.error(`Error checking chair ${chairNum}:`, error)
+      }
+    }
+    return null // No available chair found
+  }
+
+  // Auto-calculate end_time when treatment_type or start_time changes
+  useEffect(() => {
+    if (autoEndTime && formData.treatment_type && formData.start_time) {
+      const selectedService = services.find(s => s.name === formData.treatment_type)
+      if (selectedService && selectedService.duration) {
+        const newEndTime = calculateEndTime(formData.start_time, selectedService.duration)
+        setFormData(prev => ({ ...prev, end_time: newEndTime }))
+      }
+    }
+  }, [formData.treatment_type, formData.start_time, autoEndTime, services])
+
+  // Auto-assign chair when date/time/staff changes
+  useEffect(() => {
+    const assignChair = async () => {
+      if (
+        autoChair && // Only if auto-assignment is enabled
+        !appointment && // Only for new appointments
+        formData.date &&
+        formData.start_time &&
+        formData.end_time &&
+        formData.staff_id &&
+        formData.start_time < formData.end_time
+      ) {
+        const availableChair = await findAvailableChair(
+          formData.date,
+          formData.start_time,
+          formData.end_time,
+          formData.staff_id,
+          undefined
+        )
+        if (availableChair !== null) {
+          setFormData(prev => ({ ...prev, chair_number: availableChair }))
+        }
+      }
+    }
+    assignChair()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.date, formData.start_time, formData.end_time, formData.staff_id, autoChair])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -618,7 +733,10 @@ export function AppointmentModal({
                 id="end_time"
                 type="time"
                 value={formData.end_time}
-                onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, end_time: e.target.value })
+                  setAutoEndTime(false) // User manually changed end_time
+                }}
                 required
                 disabled={isSaving}
               />
@@ -627,14 +745,17 @@ export function AppointmentModal({
               <Label htmlFor="chair_number">チェア番号</Label>
               <Select
                 value={formData.chair_number?.toString()}
-                onValueChange={(value) => setFormData({ ...formData, chair_number: parseInt(value) })}
+                onValueChange={(value) => {
+                  setFormData({ ...formData, chair_number: parseInt(value) })
+                  setAutoChair(false) // User manually changed chair
+                }}
                 disabled={isSaving}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[1, 2, 3, 4, 5].map((num) => (
+                  {chairNumbers.map((num) => (
                     <SelectItem key={num} value={num.toString()}>
                       チェア {num}
                     </SelectItem>
@@ -649,21 +770,21 @@ export function AppointmentModal({
             <Label htmlFor="treatment_type">治療内容</Label>
             <Select
               value={formData.treatment_type}
-              onValueChange={(value) => setFormData({ ...formData, treatment_type: value })}
+              onValueChange={(value) => {
+                setFormData({ ...formData, treatment_type: value })
+                setAutoEndTime(true) // Re-enable auto-calculation when service changes
+              }}
               disabled={isSaving}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="治療内容を選択" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="定期検診">定期検診</SelectItem>
-                <SelectItem value="虫歯治療">虫歯治療</SelectItem>
-                <SelectItem value="クリーニング">クリーニング</SelectItem>
-                <SelectItem value="矯正">矯正</SelectItem>
-                <SelectItem value="インプラント">インプラント</SelectItem>
-                <SelectItem value="抜歯">抜歯</SelectItem>
-                <SelectItem value="根管治療">根管治療</SelectItem>
-                <SelectItem value="ホワイトニング">ホワイトニング</SelectItem>
+                {services.map((service) => (
+                  <SelectItem key={service.id} value={service.name}>
+                    {service.name} ({service.duration}分)
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
