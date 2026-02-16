@@ -133,9 +133,11 @@ export function Reports() {
         
         let thisMonthRevenue = 0
         thisMonthCompleted.forEach((apt) => {
-          const service = serviceMap.get((apt as any).service_id)
-          if (service?.price) {
-            thisMonthRevenue += service.price
+          if (apt.service_id) {
+            const service = serviceMap.get(apt.service_id)
+            if (service?.price) {
+              thisMonthRevenue += service.price
+            }
           }
         })
 
@@ -145,21 +147,29 @@ export function Reports() {
         )
         let lastMonthRevenue = 0
         lastMonthCompleted.forEach((apt) => {
-          const service = serviceMap.get((apt as any).service_id)
-          if (service?.price) {
-            lastMonthRevenue += service.price
+          if (apt.service_id) {
+            const service = serviceMap.get(apt.service_id)
+            if (service?.price) {
+              lastMonthRevenue += service.price
+            }
           }
         })
 
         // スタッフ別キャパシティ計算
+        // 注意: 以下の計算は概算です
+        // - 週5日稼働（月〜金）と仮定
+        // - 1日9時間営業（09:00-18:00）と仮定
+        // - 1予約平均30分と仮定
+        // - 祝日を月2日と概算
+        // 実際のクリニックの営業日・時間と異なる場合があります
         const staffCapacity = staff.map((s) => {
           const staffAppointments = thisMonthAppointments.filter(
             (apt) => apt.staff_id === s.id
           )
           
-          // 今月の営業日数を概算（月の日数 - 日曜日の数 - 祝日の数[概算4日]）
+          // 今月の営業日数を概算
           const daysInMonth = thisMonthEnd.getDate()
-          const businessDays = Math.floor(daysInMonth * 5 / 7) - 2 // 週5日稼働と仮定
+          const businessDays = Math.floor(daysInMonth * 5 / 7) - 2 // 週5日稼働、祝日2日分
           
           // 1日9時間営業、1予約平均30分と仮定
           const dailySlots = (9 * 60) / 30

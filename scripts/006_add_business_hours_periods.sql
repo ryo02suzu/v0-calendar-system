@@ -13,6 +13,8 @@ ADD COLUMN IF NOT EXISTS afternoon_closed BOOLEAN DEFAULT false;
 
 -- 既存データの移行: open_time/close_time から午前/午後を推定
 -- 営業日の場合のみ、午前を開店〜12時、午後を13時〜閉店として設定
+-- 注意: 昼休み時間（12:00-13:00）は一般的な診療所の休憩時間を想定しています。
+-- クリニックの実際の昼休み時間が異なる場合は、このクエリを調整してください。
 UPDATE business_hours
 SET
   morning_start = open_time,

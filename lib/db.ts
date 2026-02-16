@@ -5,6 +5,10 @@ import { supabaseAdmin } from "./supabase/admin"
 import type { Patient, WaitlistEntry, Staff, Service, MedicalRecord } from "./types"
 
 // クリニック初期化フラグ（モジュールレベル）
+// 注意: この変数はNext.jsのサーバーサイドで動作し、開発時のホットリロード時にリセットされます。
+// 本番環境では各サーバーインスタンスごとに独立して管理されます。
+// 複数インスタンスでの並行初期化は、データベース側の制約（clinic_id の UNIQUE 制約）により
+// 自動的に処理されるため、レースコンディションが発生しても問題ありません。
 let clinicInitialized = false
 
 // 患者関連
