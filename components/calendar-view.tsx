@@ -111,11 +111,12 @@ export function CalendarView() {
       }
       await loadData()
       setIsModalOpen(false)
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "予約の保存に失敗しました"
       console.error("[v0] Error saving appointment:", error)
       toast({
         title: "エラー",
-        description: error?.message || "予約の保存に失敗しました",
+        description: message,
         variant: "destructive",
       })
       throw error
@@ -138,11 +139,12 @@ export function CalendarView() {
       })
       await loadData()
       setIsModalOpen(false)
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "予約の削除に失敗しました"
       console.error("[v0] Error deleting appointment:", error)
       toast({
         title: "エラー",
-        description: error?.message || "予約の削除に失敗しました",
+        description: message,
         variant: "destructive",
       })
     }
