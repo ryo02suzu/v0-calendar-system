@@ -1119,6 +1119,15 @@ export async function initializeClinic() {
       "00000000-0000-0000-0000-000000000026", // 抜歯 45分
     ]
 
+    const serviceNames = [
+      "初診・検診",
+      "虫歯治療",
+      "クリーニング",
+      "ホワイトニング",
+      "矯正相談",
+      "抜歯",
+    ]
+
     const serviceDurations = [30, 45, 30, 60, 30, 45]
 
     const today = new Date()
@@ -1174,6 +1183,7 @@ export async function initializeClinic() {
             patient_id: patientId,
             staff_id: staffIds[staffIdx],
             service_id: serviceIds[serviceIdx],
+            treatment_type: serviceNames[serviceIdx],
             date: dateStr,
             start_time: startTime,
             end_time: endTime,
@@ -1216,6 +1226,7 @@ export async function initializeClinic() {
         patient_id: patientId,
         staff_id: staffIds[i % staffIds.length],
         service_id: serviceIds[serviceIdx],
+        treatment_type: serviceNames[serviceIdx],
         date: saturdayStr,
         start_time: startTime,
         end_time: endTime,
