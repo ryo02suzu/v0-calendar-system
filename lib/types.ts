@@ -87,17 +87,10 @@ export interface Service {
 export interface BusinessHours {
   id?: string
   clinic_id?: string
-  day_of_week: string | number
-  is_open: boolean
+  day_of_week: number
   open_time?: string
   close_time?: string
   is_closed?: boolean
-  morning_start: string | null
-  morning_end: string | null
-  afternoon_start: string | null
-  afternoon_end: string | null
-  morning_closed: boolean
-  afternoon_closed: boolean
   created_at?: string
   updated_at?: string
 }

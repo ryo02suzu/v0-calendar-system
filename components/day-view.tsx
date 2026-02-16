@@ -1,14 +1,13 @@
 "use client"
 
 import { isSameDay, parseISO } from "date-fns"
-import type { Staff } from "@/lib/types"
-import type { CalendarAppointment } from "@/types/api"
+import type { Staff, Appointment } from "@/lib/types"
 
 interface DayViewProps {
   currentDate: Date
-  appointments: CalendarAppointment[]
+  appointments: Appointment[]
   staff: Staff[]
-  onAppointmentClick: (appointment: CalendarAppointment) => void
+  onAppointmentClick: (appointment: Appointment) => void
   onEmptyCellClick?: (args: { date: Date; hour: number; staffId: string }) => void
 }
 
