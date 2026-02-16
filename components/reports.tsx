@@ -192,6 +192,8 @@ export function Reports() {
         const pending = thisMonthAppointments.filter(
           (apt) => apt.confirmation_status === "pending" || !apt.confirmation_status
         ).length
+        // 期限切れは確認済みでも未確認でもないもの
+        // 注意: 現在の実装では確認済みと未確認以外は全て期限切れとして扱います
         const expired = thisMonthTotal - confirmed - pending
 
         const confirmationStats = [
