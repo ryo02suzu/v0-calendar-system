@@ -77,20 +77,8 @@ export function MonthView({
 
   const isBusinessDay = (date: Date) => {
     const dayOfWeek = date.getDay()
-    const hours = businessHours.find((h) => Number(h.day_of_week) === dayOfWeek)
+    const hours = businessHours.find((h) => h.day_of_week === dayOfWeek)
     return hours ? !hours.is_closed : true
-  }
-
-  const isMorningClosed = (date: Date) => {
-    const dayOfWeek = date.getDay()
-    const hours = businessHours.find((h) => Number(h.day_of_week) === dayOfWeek)
-    return hours?.morning_closed || false
-  }
-
-  const isAfternoonClosed = (date: Date) => {
-    const dayOfWeek = date.getDay()
-    const hours = businessHours.find((h) => Number(h.day_of_week) === dayOfWeek)
-    return hours?.afternoon_closed || false
   }
 
   return (
@@ -115,8 +103,6 @@ export function MonthView({
             const isCurrentMonth = isSameMonth(day, currentDate)
             const isToday = isSameDay(day, new Date())
             const isClosedDay = isHoliday(day) || !isBusinessDay(day)
-            const morningClosed = isMorningClosed(day)
-            const afternoonClosed = isAfternoonClosed(day)
 
             return (
               <div
@@ -145,33 +131,17 @@ export function MonthView({
                     </div>
                   ) : (
                     <div className="space-y-1 md:space-y-1.5">
-                      {morningClosed ? (
-                        <div className="flex items-center gap-1 px-1 md:px-2 py-0.5 md:py-1 rounded-md bg-gray-100 border border-gray-300">
-                          <Sunrise className="w-2.5 h-2.5 md:w-3 md:h-3 text-gray-500" />
-                          <XCircle className="w-2.5 h-2.5 md:w-3 md:h-3 text-gray-500" />
-                          <span className="text-[8px] md:text-[9px] text-gray-600 font-bold">休診</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 px-1 md:px-2 py-0.5 md:py-1 rounded-md bg-amber-50/80 border border-amber-200/50">
-                          <Sunrise className="w-2.5 h-2.5 md:w-3 md:h-3 text-amber-600" />
-                          <span className="text-xs md:text-sm font-bold text-amber-900">{morning}</span>
-                          <span className="text-[8px] md:text-[9px] text-amber-700 font-medium">名</span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1 px-1 md:px-2 py-0.5 md:py-1 rounded-md bg-amber-50/80 border border-amber-200/50">
+                        <Sunrise className="w-2.5 h-2.5 md:w-3 md:h-3 text-amber-600" />
+                        <span className="text-xs md:text-sm font-bold text-amber-900">{morning}</span>
+                        <span className="text-[8px] md:text-[9px] text-amber-700 font-medium">名</span>
+                      </div>
 
-                      {afternoonClosed ? (
-                        <div className="flex items-center gap-1 px-1 md:px-2 py-0.5 md:py-1 rounded-md bg-gray-100 border border-gray-300">
-                          <Sunset className="w-2.5 h-2.5 md:w-3 md:h-3 text-gray-500" />
-                          <XCircle className="w-2.5 h-2.5 md:w-3 md:h-3 text-gray-500" />
-                          <span className="text-[8px] md:text-[9px] text-gray-600 font-bold">休診</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 px-1 md:px-2 py-0.5 md:py-1 rounded-md bg-indigo-50/80 border border-indigo-200/50">
-                          <Sunset className="w-2.5 h-2.5 md:w-3 md:h-3 text-indigo-600" />
-                          <span className="text-xs md:text-sm font-bold text-indigo-900">{afternoon}</span>
-                          <span className="text-[8px] md:text-[9px] text-indigo-700 font-medium">名</span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1 px-1 md:px-2 py-0.5 md:py-1 rounded-md bg-indigo-50/80 border border-indigo-200/50">
+                        <Sunset className="w-2.5 h-2.5 md:w-3 md:h-3 text-indigo-600" />
+                        <span className="text-xs md:text-sm font-bold text-indigo-900">{afternoon}</span>
+                        <span className="text-[8px] md:text-[9px] text-indigo-700 font-medium">名</span>
+                      </div>
                     </div>
                   ))}
               </div>

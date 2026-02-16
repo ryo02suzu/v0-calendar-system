@@ -55,20 +55,8 @@ export function WeekView({
 
   const isBusinessDay = (date: Date) => {
     const dayOfWeek = date.getDay()
-    const hours = businessHours.find((h) => Number(h.day_of_week) === dayOfWeek)
+    const hours = businessHours.find((h) => h.day_of_week === dayOfWeek)
     return hours ? !hours.is_closed : true
-  }
-
-  const isMorningClosed = (date: Date) => {
-    const dayOfWeek = date.getDay()
-    const hours = businessHours.find((h) => Number(h.day_of_week) === dayOfWeek)
-    return hours?.morning_closed || false
-  }
-
-  const isAfternoonClosed = (date: Date) => {
-    const dayOfWeek = date.getDay()
-    const hours = businessHours.find((h) => Number(h.day_of_week) === dayOfWeek)
-    return hours?.afternoon_closed || false
   }
 
   return (
@@ -80,8 +68,6 @@ export function WeekView({
           const count = dayAppointments.length
           const isToday = isSameDay(day, new Date())
           const isClosedDay = isHoliday(day) || !isBusinessDay(day)
-          const morningClosed = isMorningClosed(day)
-          const afternoonClosed = isAfternoonClosed(day)
 
           return (
             <div
@@ -110,53 +96,27 @@ export function WeekView({
                 </div>
               ) : (
                 <div className="space-y-1.5 md:space-y-2">
-                  {morningClosed ? (
-                    <div className="flex flex-col items-center justify-center gap-1 p-1.5 md:p-2 rounded-lg bg-gray-100 border border-gray-300">
-                      <div className="flex items-center gap-1">
-                        <Sun className="w-3 h-3 text-gray-500" />
-                        <span className="text-[9px] md:text-[10px] font-semibold text-gray-600">午前</span>
-                      </div>
-                      <div className="flex items-center gap-0.5">
-                        <XCircle className="w-3 h-3 text-gray-500" />
-                        <span className="text-xs font-bold text-gray-600">休診</span>
-                      </div>
+                  <div className="flex flex-col items-center gap-1 p-1.5 md:p-2 rounded-lg bg-amber-50 border border-amber-200">
+                    <div className="flex items-center gap-1">
+                      <Sun className="w-3 h-3 text-amber-600" />
+                      <span className="text-[9px] md:text-[10px] font-semibold text-amber-900">午前</span>
                     </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-1 p-1.5 md:p-2 rounded-lg bg-amber-50 border border-amber-200">
-                      <div className="flex items-center gap-1">
-                        <Sun className="w-3 h-3 text-amber-600" />
-                        <span className="text-[9px] md:text-[10px] font-semibold text-amber-900">午前</span>
-                      </div>
-                      <span className="text-base md:text-lg font-bold text-amber-900">
-                        {morning.length}
-                        <span className="text-[9px] md:text-[10px] font-normal ml-0.5">名</span>
-                      </span>
-                    </div>
-                  )}
+                    <span className="text-base md:text-lg font-bold text-amber-900">
+                      {morning.length}
+                      <span className="text-[9px] md:text-[10px] font-normal ml-0.5">名</span>
+                    </span>
+                  </div>
 
-                  {afternoonClosed ? (
-                    <div className="flex flex-col items-center justify-center gap-1 p-1.5 md:p-2 rounded-lg bg-gray-100 border border-gray-300">
-                      <div className="flex items-center gap-1">
-                        <Sunset className="w-3 h-3 text-gray-500" />
-                        <span className="text-[9px] md:text-[10px] font-semibold text-gray-600">午後</span>
-                      </div>
-                      <div className="flex items-center gap-0.5">
-                        <XCircle className="w-3 h-3 text-gray-500" />
-                        <span className="text-xs font-bold text-gray-600">休診</span>
-                      </div>
+                  <div className="flex flex-col items-center gap-1 p-1.5 md:p-2 rounded-lg bg-indigo-50 border border-indigo-200">
+                    <div className="flex items-center gap-1">
+                      <Sunset className="w-3 h-3 text-indigo-600" />
+                      <span className="text-[9px] md:text-[10px] font-semibold text-indigo-900">午後</span>
                     </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-1 p-1.5 md:p-2 rounded-lg bg-indigo-50 border border-indigo-200">
-                      <div className="flex items-center gap-1">
-                        <Sunset className="w-3 h-3 text-indigo-600" />
-                        <span className="text-[9px] md:text-[10px] font-semibold text-indigo-900">午後</span>
-                      </div>
-                      <span className="text-base md:text-lg font-bold text-indigo-900">
-                        {afternoon.length}
-                        <span className="text-[9px] md:text-[10px] font-normal ml-0.5">名</span>
-                      </span>
-                    </div>
-                  )}
+                    <span className="text-base md:text-lg font-bold text-indigo-900">
+                      {afternoon.length}
+                      <span className="text-[9px] md:text-[10px] font-normal ml-0.5">名</span>
+                    </span>
+                  </div>
 
                   <div className="flex items-center justify-center gap-1 md:gap-1.5 mt-1 md:mt-2 pt-1 md:pt-2 border-t border-border/50">
                     <Users className="w-3 h-3 md:w-4 md:h-4 text-primary" />
