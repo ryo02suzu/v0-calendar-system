@@ -98,6 +98,7 @@ export function AppointmentModal({
   const [services, setServices] = useState<Service[]>([])
   const [clinicSettings, setClinicSettings] = useState<ClinicSettings | null>(null)
   const [autoEndTime, setAutoEndTime] = useState(true) // Track if end_time should be auto-calculated
+  const [autoChair, setAutoChair] = useState(true) // Track if chair should be auto-assigned
   const [chairNumbers, setChairNumbers] = useState<number[]>([1, 2, 3, 4, 5])
 
   const selectedPatient = useMemo(
@@ -233,10 +234,11 @@ export function AppointmentModal({
       setFormData(appointment)
       setIsNewPatient(false)
       setAutoEndTime(false) // Existing appointment, don't auto-calculate
+      setAutoChair(false) // Existing appointment, don't auto-assign
     } else {
       const start = initialSlotData?.time || "09:00"
       const endHour = (parseInt(start.split(":")[0]) + 1).toString().padStart(2, "0")
-      // Set initial treatment_type to first service or empty
+      // Set initial treatment_type to first service if available
       const initialTreatment = services.length > 0 ? services[0].name : ""
       setFormData({
         date: initialSlotData?.date || getCurrentDate(),
@@ -251,6 +253,7 @@ export function AppointmentModal({
       setIsNewPatient(false)
       setNewPatientData({ name: "", name_kana: "", phone: "", email: "", date_of_birth: "" })
       setAutoEndTime(true) // New appointment, enable auto-calculation
+      setAutoChair(true) // New appointment, enable auto-assignment
     }
     setError(null)
   }, [appointment, staff, initialSlotData, services])
@@ -335,6 +338,7 @@ export function AppointmentModal({
   useEffect(() => {
     const assignChair = async () => {
       if (
+        autoChair && // Only if auto-assignment is enabled
         !appointment && // Only for new appointments
         formData.date &&
         formData.start_time &&
@@ -349,14 +353,14 @@ export function AppointmentModal({
           formData.staff_id,
           undefined
         )
-        if (availableChair !== null && availableChair !== formData.chair_number) {
+        if (availableChair !== null) {
           setFormData(prev => ({ ...prev, chair_number: availableChair }))
         }
       }
     }
     assignChair()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.date, formData.start_time, formData.end_time, formData.staff_id, chairNumbers, appointment])
+  }, [formData.date, formData.start_time, formData.end_time, formData.staff_id, autoChair])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -741,7 +745,10 @@ export function AppointmentModal({
               <Label htmlFor="chair_number">チェア番号</Label>
               <Select
                 value={formData.chair_number?.toString()}
-                onValueChange={(value) => setFormData({ ...formData, chair_number: parseInt(value) })}
+                onValueChange={(value) => {
+                  setFormData({ ...formData, chair_number: parseInt(value) })
+                  setAutoChair(false) // User manually changed chair
+                }}
                 disabled={isSaving}
               >
                 <SelectTrigger>
