@@ -30,7 +30,7 @@ interface AppointmentModalProps {
   staff: Staff[]
   onSave: (appointment: Appointment) => Promise<void>
   onDelete: (id: string) => void
-  initialSlotData?: { date: string; time: string; staffId?: string } | null
+  initialSlotData?: { date: string; time: string; chairNumber?: number } | null
   debugSearch?: boolean // true にするとゼロ件時に console に候補出力
 }
 
@@ -209,9 +209,9 @@ export function AppointmentModal({
         end_time: `${endHour}:00`,
         treatment_type: "定期検診",
         status: "confirmed",
-        chair_number: 1,
+        chair_number: initialSlotData?.chairNumber || 1,
         notes: "",
-        staff_id: initialSlotData?.staffId || staff[0]?.id,
+        staff_id: staff[0]?.id,
       })
       setIsNewPatient(false)
       setNewPatientData({ name: "", name_kana: "", phone: "", email: "", date_of_birth: "" })
