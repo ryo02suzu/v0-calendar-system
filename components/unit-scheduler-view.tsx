@@ -2,23 +2,17 @@
 import { useState, useEffect } from "react"
 import { format, parseISO, isSameDay } from "date-fns"
 import { ja } from "date-fns/locale"
-import type { Appointment } from "@/lib/types"
+import type { Appointment, Staff } from "@/lib/types"
 import { Clock, Sun, Sunset, CheckCircle2, AlertCircle } from "lucide-react"
 
 interface UnitSchedulerViewProps {
   currentDate: Date
   appointments: Appointment[]
+  staff: Staff[]
   onAppointmentClick: (appointment: Appointment) => void
-  onSlotClick?: (date: string, time: string, unitId?: string) => void
+  onSlotClick?: (date: string, time: string, staffId?: string) => void
 }
 
-const UNITS = [
-  { id: "unit-1", name: "ユニット1", color: "bg-blue-500" },
-  { id: "unit-2", name: "ユニット2", color: "bg-green-500" },
-  { id: "unit-3", name: "ユニット3", color: "bg-purple-500" },
-  { id: "hygiene-1", name: "衛生士1", color: "bg-amber-500" },
-  { id: "surgery", name: "処置室", color: "bg-red-500" },
-]
 const START_HOUR = 9
 const END_HOUR = 19
 const SLOT_MINUTES = 30
@@ -26,10 +20,18 @@ const SLOT_MINUTES = 30
 export default function UnitSchedulerView({
   currentDate,
   appointments,
+  staff,
   onAppointmentClick,
   onSlotClick,
 }: UnitSchedulerViewProps) {
   const [currentTime, setCurrentTime] = useState(new Date())
+  
+  // Staff colors for visual differentiation
+  const staffColors = ["bg-blue-500", "bg-green-500", "bg-purple-500", "bg-amber-500", "bg-red-500"]
+  const staffWithColors = staff.map((s, index) => ({
+    ...s,
+    color: staffColors[index % staffColors.length]
+  }))
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000)
@@ -87,37 +89,37 @@ export default function UnitSchedulerView({
       </div>
       <div className="flex-1 overflow-auto">
         <div className="min-w-[1200px]">
-          <div className="grid grid-cols-[80px_repeat(5,1fr)] bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+          <div className={`grid bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm`} style={{ gridTemplateColumns: `80px repeat(${staffWithColors.length}, 1fr)` }}>
             <div className="p-3 border-r border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
               <span className="text-xs font-semibold text-gray-600">時間</span>
             </div>
-            {UNITS.map((unit) => (
-              <div key={unit.id} className="p-3 border-r border-gray-200 last:border-r-0">
+            {staffWithColors.map((staffMember) => (
+              <div key={staffMember.id} className="p-3 border-r border-gray-200 last:border-r-0">
                 <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${unit.color}`} />
-                  <span className="text-sm font-semibold text-gray-900">{unit.name}</span>
+                  <div className={`w-3 h-3 rounded-full ${staffMember.color}`} />
+                  <span className="text-sm font-semibold text-gray-900">{staffMember.name}</span>
                 </div>
               </div>
             ))}
           </div>
           <div className="relative">
             {timeSlots.map((timeSlot) => (
-              <div key={timeSlot} className="grid grid-cols-[80px_repeat(5,1fr)] border-b border-gray-100">
+              <div key={timeSlot} className={`grid border-b border-gray-100`} style={{ gridTemplateColumns: `80px repeat(${staffWithColors.length}, 1fr)` }}>
                 <div className="p-3 border-r border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
                   <span className="text-xs font-medium text-gray-600">{timeSlot}</span>
                 </div>
-                {UNITS.map((unit) => {
+                {staffWithColors.map((staffMember) => {
                   const cellAppointments = todayAppointments.filter(
-                    (apt) => apt.start_time === timeSlot && apt.staff_id === unit.id
+                    (apt) => apt.start_time === timeSlot && apt.staff_id === staffMember.id
                   )
                   return (
                     <div
-                      key={unit.id}
+                      key={staffMember.id}
                       className="min-h-[80px] p-2 border-r border-gray-100 last:border-r-0 hover:bg-blue-50 transition-colors cursor-pointer relative"
                       onClick={() => {
                         if (cellAppointments.length === 0 && onSlotClick) {
                           const dateString = currentDate.toISOString().split("T")[0]
-                          onSlotClick(dateString, timeSlot, unit.id)
+                          onSlotClick(dateString, timeSlot, staffMember.id)
                         }
                       }}
                     >
@@ -128,7 +130,7 @@ export default function UnitSchedulerView({
                         >
                           <div
                             onClick={(e) => { e.stopPropagation(); onAppointmentClick(apt) }}
-                            className={`p-2 rounded-lg border-l-4 ${unit.color} bg-white shadow-sm hover:shadow-md transition-all cursor-pointer`}
+                            className={`p-2 rounded-lg border-l-4 ${staffMember.color} bg-white shadow-sm hover:shadow-md transition-all cursor-pointer`}
                           >
                             <div className="text-xs font-semibold text-gray-900 truncate">
                               {apt.patient?.name || "患者名なし"}
