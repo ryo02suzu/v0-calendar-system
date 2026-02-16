@@ -66,9 +66,9 @@ export function CalendarView() {
     setIsModalOpen(true)
   }
 
-  const handleSlotClick = (date: string, time: string, unitId?: string) => {
+  const handleSlotClick = (date: string, time: string, staffId?: string) => {
     setSelectedAppointment(null)
-    const chairNumber = unitId?.includes("unit-") ? parseInt(unitId.split("-")[1]) : undefined
+    const chairNumber = undefined // Chair number is no longer used here
     setInitialSlotData({ date, time, chairNumber })
     setIsModalOpen(true)
   }
@@ -157,6 +157,7 @@ export function CalendarView() {
           <UnitSchedulerView
             currentDate={currentDate}
             appointments={appointments}
+            staff={staff}
             onAppointmentClick={handleEditAppointment}
             onSlotClick={handleSlotClick}
           />
