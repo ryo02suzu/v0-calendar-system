@@ -10,9 +10,6 @@ import type { Appointment, Staff, Holiday, BusinessHours } from "@/lib/types"
 import {
   getAppointments,
   getStaff,
-  createAppointment,
-  updateAppointment,
-  deleteAppointment,
   getHolidays,
   getBusinessHours,
 } from "@/lib/db"
@@ -82,13 +79,31 @@ export function CalendarView() {
   const handleSaveAppointment = async (appointment: Appointment) => {
     try {
       if (selectedAppointment) {
-        await updateAppointment(appointment.id, appointment)
+        // Update existing appointment via API
+        const response = await fetch(`/api/reservations/${appointment.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(appointment),
+        })
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.error || "予約の更新に失敗しました")
+        }
         toast({
           title: "保存完了",
           description: "予約を更新しました",
         })
       } else {
-        await createAppointment(appointment)
+        // Create new appointment via API
+        const response = await fetch("/api/reservations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(appointment),
+        })
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.error || "予約の作成に失敗しました")
+        }
         toast({
           title: "保存完了",
           description: "予約を作成しました",
@@ -109,18 +124,25 @@ export function CalendarView() {
 
   const handleDeleteAppointment = async (id: string) => {
     try {
-      await deleteAppointment(id)
+      // Delete appointment via API
+      const response = await fetch(`/api/reservations/${id}`, {
+        method: "DELETE",
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || "予約の削除に失敗しました")
+      }
       toast({
         title: "削除完了",
         description: "予約を削除しました",
       })
       await loadData()
       setIsModalOpen(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error("[v0] Error deleting appointment:", error)
       toast({
         title: "エラー",
-        description: "予約の削除に失敗しました",
+        description: error?.message || "予約の削除に失敗しました",
         variant: "destructive",
       })
     }

@@ -81,7 +81,7 @@ export function AppointmentModal({
     date: getCurrentDate(),
     start_time: "09:00",
     end_time: "10:00",
-    treatment_type: "",
+    treatment_type: "定期検診",
     status: "confirmed",
     chair_number: 1,
     notes: "",
@@ -238,8 +238,8 @@ export function AppointmentModal({
     } else {
       const start = initialSlotData?.time || "09:00"
       const endHour = (parseInt(start.split(":")[0]) + 1).toString().padStart(2, "0")
-      // Set initial treatment_type to first service if available
-      const initialTreatment = services.length > 0 ? services[0].name : ""
+      // Set initial treatment_type to first service if available, otherwise use fallback
+      const initialTreatment = services.length > 0 ? services[0].name : "定期検診"
       setFormData({
         date: initialSlotData?.date || getCurrentDate(),
         start_time: start,
