@@ -28,7 +28,7 @@ export function CalendarView() {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [initialSlotData, setInitialSlotData] = useState<{ date: string; time: string; staffId?: string } | null>(null)
+  const [initialSlotData, setInitialSlotData] = useState<{ date: string; time: string; chairNumber?: number } | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -68,8 +68,8 @@ export function CalendarView() {
 
   const handleSlotClick = (date: string, time: string, unitId?: string) => {
     setSelectedAppointment(null)
-    const chairNumber = unitId?.includes("unit-") ? unitId.split("-")[1] : undefined
-    setInitialSlotData({ date, time, staffId: chairNumber })
+    const chairNumber = unitId?.includes("unit-") ? parseInt(unitId.split("-")[1]) : undefined
+    setInitialSlotData({ date, time, chairNumber })
     setIsModalOpen(true)
   }
 
