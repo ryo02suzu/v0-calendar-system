@@ -201,7 +201,7 @@ describe('Unit Scheduler - Staff UUID Filtering', () => {
     
     it('should handle more staff than available colors', () => {
       const staff: Staff[] = Array.from({ length: 7 }, (_, i) => ({
-        id: `${i}50e8400-e29b-41d4-a716-446655440000`,
+        id: `${i.toString().padStart(8, '0')}-e29b-41d4-a716-446655440000`,
         clinic_id: "clinic-123",
         name: `Dr. Staff ${i}`,
         role: "dentist",
