@@ -56,7 +56,7 @@ export function WeekView({
   const isBusinessDay = (date: Date) => {
     const dayOfWeek = date.getDay()
     const hours = businessHours.find((h) => h.day_of_week === dayOfWeek)
-    return hours ? !hours.is_closed : true
+    return hours ? !(hours.is_closed ?? false) : true
   }
 
   return (
