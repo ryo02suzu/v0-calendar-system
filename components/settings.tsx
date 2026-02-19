@@ -28,12 +28,15 @@ import {
   updateStaff,
   deleteStaff,
 } from "@/lib/db"
+import type { Service, BusinessHours, Holiday, ClinicSettings, Staff } from "@/lib/types"
+import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ReseconSettings } from "@/components/resecon-settings"
 import { ReminderSettings } from "@/components/reminder-settings"
 
 export function Settings() {
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("clinic")
   const [clinicInfo, setClinicInfo] = useState({
     name: "今泉歯科クリニック",
@@ -49,15 +52,15 @@ export function Settings() {
     push: true,
   })
 
-  const [services, setServices] = useState<any[]>([])
-  const [businessHours, setBusinessHours] = useState<any[]>([])
-  const [holidays, setHolidays] = useState<any[]>([])
-  const [clinicSettings, setClinicSettings] = useState<any>(null)
-  const [staff, setStaff] = useState<any[]>([])
+  const [services, setServices] = useState<Service[]>([])
+  const [businessHours, setBusinessHours] = useState<BusinessHours[]>([])
+  const [holidays, setHolidays] = useState<Holiday[]>([])
+  const [clinicSettings, setClinicSettings] = useState<ClinicSettings | null>(null)
+  const [staff, setStaff] = useState<Staff[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   // サービス編集用
-  const [editingService, setEditingService] = useState<any>(null)
+  const [editingService, setEditingService] = useState<Partial<Service> | null>(null)
   const [isServiceDialogOpen, setIsServiceDialogOpen] = useState(false)
   const [isSavingService, setIsSavingService] = useState(false)
 
@@ -65,7 +68,7 @@ export function Settings() {
   const [isSavingHours, setIsSavingHours] = useState(false)
 
   // スタッフ編集用
-  const [editingStaff, setEditingStaff] = useState<any>(null)
+  const [editingStaff, setEditingStaff] = useState<Partial<Staff> | null>(null)
   const [isStaffDialogOpen, setIsStaffDialogOpen] = useState(false)
 
   // 休診日追加用
@@ -77,8 +80,8 @@ export function Settings() {
   }, [])
 
   // 全ての曜日（0-6）のエントリを保証するヘルパー
-  function ensureAllDays(hoursFromDB: any[]): any[] {
-    const result: any[] = []
+  function ensureAllDays(hoursFromDB: BusinessHours[]): BusinessHours[] {
+    const result: BusinessHours[] = []
     for (let day = 0; day <= 6; day++) {
       const existing = hoursFromDB.find((h) => Number(h.day_of_week) === day)
       if (existing) {
@@ -97,7 +100,7 @@ export function Settings() {
   }
 
   // 診療時間の更新ヘルパー
-  function updateDay(index: number, patch: Partial<any>) {
+  function updateDay(index: number, patch: Partial<BusinessHours>) {
     setBusinessHours((prev) => {
       const updated = [...prev]
       const target = updated.find((h) => Number(h.day_of_week) === index)
@@ -145,9 +148,16 @@ export function Settings() {
   async function handleSaveClinic() {
     try {
       await updateClinic(clinicInfo)
-      alert("クリニック情報を保存しました")
+      toast({
+        title: "保存完了",
+        description: "クリニック情報を保存しました",
+      })
     } catch (error) {
-      alert("保存に失敗しました")
+      toast({
+        title: "エラー",
+        description: "保存に失敗しました",
+        variant: "destructive",
+      })
     }
   }
 
@@ -158,13 +168,17 @@ export function Settings() {
       if (editingService?.id) {
         await updateService(editingService.id, editingService)
       } else {
-        await createService(editingService)
+        await createService(editingService!)
       }
       await loadData()
       setIsServiceDialogOpen(false)
       setEditingService(null)
     } catch (error) {
-      alert("保存に失敗しました")
+      toast({
+        title: "エラー",
+        description: "保存に失敗しました",
+        variant: "destructive",
+      })
     } finally {
       setIsSavingService(false)
     }
@@ -176,7 +190,11 @@ export function Settings() {
       await deleteService(id)
       await loadData()
     } catch (error) {
-      alert("削除に失敗しました")
+      toast({
+        title: "エラー",
+        description: "削除に失敗しました",
+        variant: "destructive",
+      })
     }
   }
 
@@ -185,13 +203,17 @@ export function Settings() {
       if (editingStaff?.id) {
         await updateStaff(editingStaff.id, editingStaff)
       } else {
-        await createStaff(editingStaff)
+        await createStaff(editingStaff!)
       }
       await loadData()
       setIsStaffDialogOpen(false)
       setEditingStaff(null)
     } catch (error) {
-      alert("保存に失敗しました")
+      toast({
+        title: "エラー",
+        description: "保存に失敗しました",
+        variant: "destructive",
+      })
     }
   }
 
@@ -201,7 +223,11 @@ export function Settings() {
       await deleteStaff(id)
       await loadData()
     } catch (error) {
-      alert("削除に失敗しました")
+      toast({
+        title: "エラー",
+        description: "削除に失敗しました",
+        variant: "destructive",
+      })
     }
   }
 
@@ -212,7 +238,11 @@ export function Settings() {
       setIsHolidayDialogOpen(false)
       setNewHoliday({ date: "", reason: "" })
     } catch (error) {
-      alert("追加に失敗しました")
+      toast({
+        title: "エラー",
+        description: "追加に失敗しました",
+        variant: "destructive",
+      })
     }
   }
 
@@ -221,16 +251,27 @@ export function Settings() {
       await deleteHoliday(id)
       await loadData()
     } catch (error) {
-      alert("削除に失敗しました")
+      toast({
+        title: "エラー",
+        description: "削除に失敗しました",
+        variant: "destructive",
+      })
     }
   }
 
   async function handleSaveSettings() {
     try {
       await updateClinicSettings(clinicSettings)
-      alert("設定を保存しました")
+      toast({
+        title: "保存完了",
+        description: "設定を保存しました",
+      })
     } catch (error) {
-      alert("保存に失敗しました")
+      toast({
+        title: "エラー",
+        description: "保存に失敗しました",
+        variant: "destructive",
+      })
     }
   }
 
@@ -247,8 +288,17 @@ export function Settings() {
       }))
       await updateBusinessHours(payload)
       await loadData()
+      toast({
+        title: "保存完了",
+        description: "診療時間を保存しました",
+      })
     } catch (error) {
       console.error("[v0] Error saving business hours:", error)
+      toast({
+        title: "エラー",
+        description: "保存に失敗しました",
+        variant: "destructive",
+      })
     } finally {
       setIsSavingHours(false)
     }
@@ -738,7 +788,7 @@ export function Settings() {
                 <Select
                   value={String(clinicSettings?.chairs_count || 3)}
                   onValueChange={(v) =>
-                    setClinicSettings({ ...clinicSettings, chairs_count: Number(v) })
+                    setClinicSettings({ ...clinicSettings, chairs_count: Number(v) } as ClinicSettings)
                   }
                 >
                   <SelectTrigger>
@@ -762,7 +812,7 @@ export function Settings() {
                 <Select
                   value={String(clinicSettings?.booking_advance_days || 60)}
                   onValueChange={(v) =>
-                    setClinicSettings({ ...clinicSettings, booking_advance_days: Number(v) })
+                    setClinicSettings({ ...clinicSettings, booking_advance_days: Number(v) } as ClinicSettings)
                   }
                 >
                   <SelectTrigger>
@@ -783,7 +833,7 @@ export function Settings() {
                 <Select
                   value={String(clinicSettings?.booking_buffer_minutes || 15)}
                   onValueChange={(v) =>
-                    setClinicSettings({ ...clinicSettings, booking_buffer_minutes: Number(v) })
+                    setClinicSettings({ ...clinicSettings, booking_buffer_minutes: Number(v) } as ClinicSettings)
                   }
                 >
                   <SelectTrigger>
@@ -803,7 +853,7 @@ export function Settings() {
                 <Select
                   value={String(clinicSettings?.max_concurrent_appointments || 1)}
                   onValueChange={(v) =>
-                    setClinicSettings({ ...clinicSettings, max_concurrent_appointments: Number(v) })
+                    setClinicSettings({ ...clinicSettings, max_concurrent_appointments: Number(v) } as ClinicSettings)
                   }
                 >
                   <SelectTrigger>
@@ -827,7 +877,7 @@ export function Settings() {
                 <Switch
                   checked={clinicSettings?.allow_double_booking || false}
                   onCheckedChange={(checked) =>
-                    setClinicSettings({ ...clinicSettings, allow_double_booking: checked })
+                    setClinicSettings({ ...clinicSettings, allow_double_booking: checked } as ClinicSettings)
                   }
                 />
               </div>
@@ -839,7 +889,7 @@ export function Settings() {
                 <Switch
                   checked={clinicSettings?.enable_patient_confirmation || false}
                   onCheckedChange={(checked) =>
-                    setClinicSettings({ ...clinicSettings, enable_patient_confirmation: checked })
+                    setClinicSettings({ ...clinicSettings, enable_patient_confirmation: checked } as ClinicSettings)
                   }
                 />
               </div>
@@ -849,7 +899,7 @@ export function Settings() {
                   <Select
                     value={String(clinicSettings?.confirmation_deadline_hours || 24)}
                     onValueChange={(v) =>
-                      setClinicSettings({ ...clinicSettings, confirmation_deadline_hours: Number(v) })
+                      setClinicSettings({ ...clinicSettings, confirmation_deadline_hours: Number(v) } as ClinicSettings)
                     }
                   >
                     <SelectTrigger>
@@ -873,7 +923,7 @@ export function Settings() {
                 <Switch
                   checked={clinicSettings?.enable_qr_checkin || false}
                   onCheckedChange={(checked) =>
-                    setClinicSettings({ ...clinicSettings, enable_qr_checkin: checked })
+                    setClinicSettings({ ...clinicSettings, enable_qr_checkin: checked } as ClinicSettings)
                   }
                 />
               </div>
