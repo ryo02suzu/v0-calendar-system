@@ -37,6 +37,7 @@ export interface Appointment {
   clinic_id: string
   patient_id: string
   staff_id: string
+  service_id?: string // サービスID（オプショナル）
   date: string
   start_time: string
   end_time: string
