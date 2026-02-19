@@ -163,12 +163,13 @@ export function Settings() {
 
   async function handleSaveService() {
     if (isSavingService) return
+    if (!editingService) return
     setIsSavingService(true)
     try {
       if (editingService?.id) {
         await updateService(editingService.id, editingService)
       } else {
-        await createService(editingService!)
+        await createService(editingService)
       }
       await loadData()
       setIsServiceDialogOpen(false)
@@ -199,11 +200,12 @@ export function Settings() {
   }
 
   async function handleSaveStaff() {
+    if (!editingStaff) return
     try {
       if (editingStaff?.id) {
         await updateStaff(editingStaff.id, editingStaff)
       } else {
-        await createStaff(editingStaff!)
+        await createStaff(editingStaff)
       }
       await loadData()
       setIsStaffDialogOpen(false)
