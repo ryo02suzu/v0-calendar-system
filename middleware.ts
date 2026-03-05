@@ -38,9 +38,22 @@ function unauthorizedResponse() {
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  // Skip middleware for API routes, Next.js internal routes, and static assets
-  // API routes have their own authentication/authorization if needed
-  if (pathname.startsWith("/api") || pathname.startsWith("/_next") || pathname === "/favicon.ico") {
+  // Public paths that do not require authentication
+  const publicPaths = [
+    "/reserve",
+    "/api/availability",
+    "/api/clinic",
+    "/api/services",
+    "/api/staff",
+    "/api/reservations",
+  ]
+
+  // Skip middleware for public paths, Next.js internal routes, and static assets
+  if (
+    publicPaths.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
+    pathname.startsWith("/_next") ||
+    pathname === "/favicon.ico"
+  ) {
     return NextResponse.next()
   }
 
