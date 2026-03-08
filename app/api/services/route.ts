@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 
 import { createService, getServices } from "@/lib/db"
+import { getServerAuth, checkServerPermission } from "@/lib/auth/server"
 
 const serviceCreateSchema = z.object({
   name: z.string().min(1, "サービス名は必須です"),
@@ -28,6 +29,14 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await getServerAuth()
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: 401 })
+  }
+  if (!checkServerPermission(auth.user!.role, "settings", "edit")) {
+    return NextResponse.json({ error: "権限がありません" }, { status: 403 })
+  }
+
   try {
     const json = await request.json()
     const payload = serviceCreateSchema.parse(json)
