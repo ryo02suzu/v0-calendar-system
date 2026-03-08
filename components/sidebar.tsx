@@ -5,6 +5,8 @@ import { Calendar, Users, FileText, BarChart3, Settings, LayoutDashboard } from 
 import { Button } from "@/components/ui/button"
 import { getClinic } from "@/lib/db"
 import type { ViewType } from "@/lib/types"
+import { usePermission } from "@/hooks/use-permission"
+import type { Permission } from "@/lib/types/auth"
 
 interface SidebarProps {
   activeView: ViewType
@@ -13,6 +15,7 @@ interface SidebarProps {
 
 export function Sidebar({ activeView, onViewChange }: SidebarProps) {
   const [clinicName, setClinicName] = useState("今泉歯科クリニック")
+  const { hasPermission } = usePermission()
 
   useEffect(() => {
     const fetchClinicName = async () => {
@@ -28,13 +31,19 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
     fetchClinicName()
   }, [])
 
-  const menuItems = [
-    { id: "dashboard" as const, icon: LayoutDashboard, label: "ダッシュボード" },
-    { id: "calendar" as const, icon: Calendar, label: "カレンダー" },
-    { id: "patients" as const, icon: Users, label: "患者一覧" },
-    { id: "records" as const, icon: FileText, label: "カルテ" },
-    { id: "reports" as const, icon: BarChart3, label: "レポート" },
-    { id: "settings" as const, icon: Settings, label: "設定" },
+  const menuItems: Array<{
+    id: ViewType
+    icon: React.ElementType
+    label: string
+    resource: keyof Permission
+    action: string
+  }> = [
+    { id: "dashboard", icon: LayoutDashboard, label: "ダッシュボード", resource: "calendar", action: "view" },
+    { id: "calendar", icon: Calendar, label: "カレンダー", resource: "calendar", action: "view" },
+    { id: "patients", icon: Users, label: "患者一覧", resource: "patients", action: "view" },
+    { id: "records", icon: FileText, label: "カルテ", resource: "records", action: "view" },
+    { id: "reports", icon: BarChart3, label: "レポート", resource: "reports", action: "view" },
+    { id: "settings", icon: Settings, label: "設定", resource: "settings", action: "view" },
   ]
 
   return (
@@ -46,6 +55,7 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
 
       <nav className="flex-1 p-4">
         {menuItems.map((item) => {
+          if (!hasPermission(item.resource, item.action)) return null
           const Icon = item.icon
           const isActive = activeView === item.id
           return (

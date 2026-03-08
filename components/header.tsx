@@ -2,11 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Bell, User, Search, X } from "lucide-react"
+import { Bell, User, Search, X, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { Patient } from "@/lib/types"
 import { useRealtimeNotifications } from "@/hooks/use-realtime"
+import { useAuth } from "@/components/auth-provider"
+import { ROLE_LABELS } from "@/lib/types/auth"
 
 interface Notification {
   id: string
@@ -35,6 +37,7 @@ export function Header() {
   const searchRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
+  const { user, signOut } = useAuth()
 
   // Handler functions
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,7 +184,7 @@ export function Header() {
   }
 
   const handleLogout = () => {
-    console.log("logout")
+    signOut()
   }
 
   const getRelativeTime = (timestamp: string): string => {
@@ -375,6 +378,24 @@ export function Header() {
           >
             <User className="w-5 h-5" />
           </Button>
+
+          {user && (
+            <>
+              <div className="hidden sm:flex flex-col items-end text-xs text-gray-500 leading-tight">
+                <span className="font-medium text-gray-700">{user.name}</span>
+                <span>{ROLE_LABELS[user.role]}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleLogout}
+                aria-label="ログアウト"
+                title="ログアウト"
+              >
+                <LogOut className="w-5 h-5" />
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </header>
