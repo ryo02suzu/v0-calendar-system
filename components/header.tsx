@@ -6,6 +6,7 @@ import { Bell, User, Search, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { Patient } from "@/lib/types"
+import { useRealtimeNotifications } from "@/hooks/use-realtime"
 
 interface Notification {
   id: string
@@ -112,6 +113,9 @@ export function Header() {
       setIsLoadingNotifications(false)
     }
   }, [])
+
+  // Realtimeによる通知の自動更新（UIは変更しない）
+  useRealtimeNotifications(fetchNotifications)
 
   // Fetch notifications when dropdown opens
   useEffect(() => {
