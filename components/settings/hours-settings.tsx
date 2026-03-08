@@ -15,7 +15,12 @@ interface HoursSettingsTabProps {
   isSavingHours: boolean
 }
 
-export function HoursSettingsTab({ businessHours, updateDay, handleSaveBusinessHours, isSavingHours }: HoursSettingsTabProps) {
+export function HoursSettingsTab({
+  businessHours,
+  updateDay,
+  handleSaveBusinessHours,
+  isSavingHours,
+}: HoursSettingsTabProps) {
   return (
     <Card>
       <CardHeader>

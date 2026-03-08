@@ -159,8 +159,7 @@ export function Settings() {
   }
 
   async function handleSaveService() {
-    if (isSavingService) return
-    if (!editingService) return
+    if (isSavingService || !editingService) return
     setIsSavingService(true)
     try {
       if (editingService?.id) {
