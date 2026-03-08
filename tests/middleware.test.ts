@@ -3,15 +3,13 @@
  *
  * Tests cover:
  * - Public paths bypass authentication
- * - Basic Auth mode: valid credentials succeed
- * - Basic Auth mode: missing credentials return 401
- * - Basic Auth mode: wrong credentials return 401
- * - Basic Auth mode: unconfigured credentials allow access
+ * - No Supabase config: access is allowed without authentication (development fallback)
  * - Supabase Auth mode: redirects to /login when not authenticated
  * - Supabase Auth mode: allows access when authenticated
  *
  * Supabase Auth mode is enabled when NEXT_PUBLIC_SUPABASE_URL and
  * NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables are set.
+ * When these variables are not set, access is allowed as a development fallback.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
@@ -46,19 +44,12 @@ function makeRequest(pathname: string, options: { authorization?: string; cookie
   return req
 }
 
-function encodeBasicAuth(username: string, password: string) {
-  return `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`
-}
-
 describe("middleware", () => {
   const originalEnv = process.env
 
   beforeEach(() => {
     vi.resetModules()
     process.env = { ...originalEnv }
-    delete process.env.SUPABASE_AUTH_ENABLED
-    delete process.env.DASHBOARD_BASIC_AUTH_USER
-    delete process.env.DASHBOARD_BASIC_AUTH_PASSWORD
     delete process.env.NEXT_PUBLIC_SUPABASE_URL
     delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   })
@@ -112,51 +103,22 @@ describe("middleware", () => {
     })
   })
 
-  describe("Basic Auth mode (NEXT_PUBLIC_SUPABASE_URL not set)", () => {
-    it("allows access when credentials are not configured", async () => {
+  describe("development fallback (NEXT_PUBLIC_SUPABASE_URL not set)", () => {
+    it("allows access when Supabase is not configured", async () => {
       const req = makeRequest("/dashboard")
       const res = await middleware(req)
+      expect(res.status).not.toBe(307)
       expect(res.status).not.toBe(401)
     })
 
-    it("returns 401 when credentials are configured but not provided", async () => {
+    it("allows access even if Basic Auth env vars are set (Basic Auth no longer used in middleware)", async () => {
       process.env.DASHBOARD_BASIC_AUTH_USER = "admin"
       process.env.DASHBOARD_BASIC_AUTH_PASSWORD = "secret"
 
       const req = makeRequest("/dashboard")
-      const res = await middleware(req)
-      expect(res.status).toBe(401)
-    })
-
-    it("returns 401 when wrong credentials are provided", async () => {
-      process.env.DASHBOARD_BASIC_AUTH_USER = "admin"
-      process.env.DASHBOARD_BASIC_AUTH_PASSWORD = "secret"
-
-      const req = makeRequest("/dashboard", {
-        authorization: encodeBasicAuth("admin", "wrong"),
-      })
-      const res = await middleware(req)
-      expect(res.status).toBe(401)
-    })
-
-    it("allows access with correct credentials", async () => {
-      process.env.DASHBOARD_BASIC_AUTH_USER = "admin"
-      process.env.DASHBOARD_BASIC_AUTH_PASSWORD = "secret"
-
-      const req = makeRequest("/dashboard", {
-        authorization: encodeBasicAuth("admin", "secret"),
-      })
       const res = await middleware(req)
       expect(res.status).not.toBe(401)
-    })
-
-    it("WWW-Authenticate header contains Basic realm", async () => {
-      process.env.DASHBOARD_BASIC_AUTH_USER = "admin"
-      process.env.DASHBOARD_BASIC_AUTH_PASSWORD = "secret"
-
-      const req = makeRequest("/dashboard")
-      const res = await middleware(req)
-      expect(res.headers.get("WWW-Authenticate")).toContain("Basic realm=")
+      expect(res.status).not.toBe(307)
     })
   })
 

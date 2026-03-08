@@ -210,28 +210,47 @@ All API endpoints use the server-side Supabase client (`lib/supabase/admin.ts`) 
 
 ## Security
 
-### HTTP Basic Authentication
+### Supabase Authentication
 
-The dashboard uses HTTP Basic Authentication to protect all pages and API routes (except static assets). This is configured via middleware and controlled by environment variables:
+The dashboard uses Supabase Auth (cookie-based sessions) to protect all pages and API routes (except public paths). Authentication is handled via middleware and the Supabase client library.
 
-- `DASHBOARD_BASIC_AUTH_USER` - Username for authentication
-- `DASHBOARD_BASIC_AUTH_PASSWORD` - Password for authentication
+**Required environment variables:**
+- `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anonymous key
 
 **Behavior:**
-- **Development**: If credentials are not set, access is allowed with a warning logged
-- **Production**: If credentials are not set, a warning is logged but access is still allowed (you should always set these!)
+- **Supabase configured**: Cookie-based session validation. Unauthenticated requests are redirected to `/login`.
+- **Supabase not configured**: Access is allowed without authentication (development fallback).
 
-### External Integrations
+**Role-based access control (RBAC):**
 
-External services or patient-facing applications can call the API endpoints by including the Basic Auth credentials in the `Authorization` header:
+User roles (`admin`, `dentist`, `hygienist`, `receptionist`, `viewer`) are stored in Supabase user metadata. Each role has defined permissions for resources such as calendar, patients, records, reports, settings, and staff. Sidebar menu items are shown or hidden based on the authenticated user's role.
 
-```bash
-curl -u username:password https://your-app.vercel.app/api/reservations?date=2024-12-01
+**API route protection:**
+
+Use the utilities in `lib/auth/session.ts` to protect API routes:
+
+```typescript
+import { requireAuth, requirePermission } from "@/lib/auth/session"
+
+// Require authentication
+const { user, error } = await requireAuth()
+if (error) return error
+
+// Require a specific permission
+const { user, error } = await requirePermission("patients", "edit")
+if (error) return error
 ```
 
-### Supabase Row Level Security
+**External API access (Bearer token):**
 
-While the dashboard uses the service role key to bypass RLS, you should configure RLS policies in Supabase for any client-side access or additional security layers.
+External services can authenticate using a Supabase Bearer token in the `Authorization` header:
+
+```bash
+curl -H "Authorization: Bearer <supabase-access-token>" https://your-app.vercel.app/api/reservations?date=2024-12-01
+```
+
+> **Note:** The `DASHBOARD_BASIC_AUTH_USER` and `DASHBOARD_BASIC_AUTH_PASSWORD` environment variables are no longer used by middleware but are retained for backward compatibility.
 
 ### Dependencies and Vulnerabilities
 
