@@ -1,7 +1,9 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 // Fonts temporarily disabled - uncomment when deploying to production
 // import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { AuthProvider } from '@/components/auth-provider'
+import { ServiceWorkerRegister } from '@/components/sw-register'
 import './globals.css'
 
 // const geist = Geist({ subsets: ["latin"] });
@@ -13,6 +15,16 @@ export const metadata: Metadata = {
   icons: {
     icon: '/icon.svg',
   },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: '歯科予約',
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#0f766e',
 }
 
 export default function RootLayout({
@@ -23,7 +35,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`font-sans antialiased`}>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+        <ServiceWorkerRegister />
         <Analytics />
       </body>
     </html>
