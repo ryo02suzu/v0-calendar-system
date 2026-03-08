@@ -1,17 +1,26 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getReminderLogs } from "@/lib/db"
 import { applySecurityChecks } from "@/lib/security/api-security"
+import { getServerAuth, checkServerPermission } from "@/lib/auth/server"
 
 /**
  * GET /api/reminder-logs
  * リマインダー送信ログを取得します。
  */
 export async function GET(request: NextRequest) {
+  const auth = await getServerAuth()
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: 401 })
+  }
+  if (!checkServerPermission(auth.user!.role, "settings", "view")) {
+    return NextResponse.json({ error: "権限がありません" }, { status: 403 })
+  }
+
   const securityCheck = applySecurityChecks(request, {
     rateLimit: { maxRequests: 60, windowMs: 60 * 1000 },
   })
-  if (!securityCheck.success) {
-    return securityCheck.response!
+  if (!securityCheck.passed) {
+    return NextResponse.json({ error: securityCheck.error }, { status: 429 })
   }
 
   try {

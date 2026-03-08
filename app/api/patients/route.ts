@@ -4,8 +4,17 @@ import { z } from "zod"
 import { createPatient, getPatients } from "@/lib/db"
 import { generatePatientNumber } from "@/lib/utils/patient-number"
 import { patientCreateSchema } from "@/lib/validations/patient"
+import { getServerAuth, checkServerPermission } from "@/lib/auth/server"
 
 export async function GET() {
+  const auth = await getServerAuth()
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: 401 })
+  }
+  if (!checkServerPermission(auth.user!.role, "patients", "view")) {
+    return NextResponse.json({ error: "権限がありません" }, { status: 403 })
+  }
+
   try {
     const data = await getPatients()
     return NextResponse.json({ data })
@@ -19,6 +28,14 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await getServerAuth()
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: 401 })
+  }
+  if (!checkServerPermission(auth.user!.role, "patients", "create")) {
+    return NextResponse.json({ error: "権限がありません" }, { status: 403 })
+  }
+
   try {
     const json = await request.json()
 

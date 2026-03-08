@@ -10,8 +10,17 @@ import { NextRequest, NextResponse } from "next/server"
 import { getPatients } from "@/lib/db"
 import { generatePatientsCsv } from "@/lib/export/csv-generator"
 import { generatePatientsPdfHtml } from "@/lib/export/pdf-generator"
+import { getServerAuth, checkServerPermission } from "@/lib/auth/server"
 
 export async function GET(request: NextRequest) {
+  const auth = await getServerAuth()
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: 401 })
+  }
+  if (!checkServerPermission(auth.user!.role, "reports", "view")) {
+    return NextResponse.json({ error: "権限がありません" }, { status: 403 })
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const format = searchParams.get("format") || "csv"

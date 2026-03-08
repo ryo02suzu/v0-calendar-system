@@ -12,8 +12,17 @@ import { NextRequest, NextResponse } from "next/server"
 import { getAppointmentsByDateRange, getAppointments } from "@/lib/db"
 import { generateAppointmentsCsv } from "@/lib/export/csv-generator"
 import { generateAppointmentsPdfHtml } from "@/lib/export/pdf-generator"
+import { getServerAuth, checkServerPermission } from "@/lib/auth/server"
 
 export async function GET(request: NextRequest) {
+  const auth = await getServerAuth()
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: 401 })
+  }
+  if (!checkServerPermission(auth.user!.role, "reports", "view")) {
+    return NextResponse.json({ error: "権限がありません" }, { status: 403 })
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const format = searchParams.get("format") || "csv"

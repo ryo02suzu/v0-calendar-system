@@ -10,6 +10,14 @@ vi.mock('@/lib/db', () => ({
   getAppointments: vi.fn(),
 }))
 
+vi.mock('@/lib/auth/server', () => ({
+  getServerAuth: vi.fn().mockResolvedValue({
+    authenticated: true,
+    user: { id: 'test-user', email: 'test@example.com', role: 'admin', clinicId: 'test-clinic' },
+  }),
+  checkServerPermission: vi.fn().mockReturnValue(true),
+}))
+
 import { getAppointmentsByDateRange, getAppointments } from '@/lib/db'
 import { GET } from '@/app/api/export/appointments/route'
 

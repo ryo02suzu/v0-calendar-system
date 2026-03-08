@@ -9,6 +9,14 @@ vi.mock('@/lib/db', () => ({
   getPatients: vi.fn(),
 }))
 
+vi.mock('@/lib/auth/server', () => ({
+  getServerAuth: vi.fn().mockResolvedValue({
+    authenticated: true,
+    user: { id: 'test-user', email: 'test@example.com', role: 'admin', clinicId: 'test-clinic' },
+  }),
+  checkServerPermission: vi.fn().mockReturnValue(true),
+}))
+
 import { getPatients } from '@/lib/db'
 import { GET } from '@/app/api/export/patients/route'
 

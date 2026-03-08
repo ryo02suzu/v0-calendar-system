@@ -9,6 +9,9 @@
  * - Basic Auth mode: unconfigured credentials allow access
  * - Supabase Auth mode: redirects to /login when not authenticated
  * - Supabase Auth mode: allows access when authenticated
+ *
+ * Supabase Auth mode is enabled when NEXT_PUBLIC_SUPABASE_URL and
+ * NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables are set.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
@@ -109,7 +112,7 @@ describe("middleware", () => {
     })
   })
 
-  describe("Basic Auth mode (SUPABASE_AUTH_ENABLED not set)", () => {
+  describe("Basic Auth mode (NEXT_PUBLIC_SUPABASE_URL not set)", () => {
     it("allows access when credentials are not configured", async () => {
       const req = makeRequest("/dashboard")
       const res = await middleware(req)
@@ -157,9 +160,8 @@ describe("middleware", () => {
     })
   })
 
-  describe("Supabase Auth mode (SUPABASE_AUTH_ENABLED=true)", () => {
+  describe("Supabase Auth mode (NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY set)", () => {
     beforeEach(() => {
-      process.env.SUPABASE_AUTH_ENABLED = "true"
       process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co"
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key"
     })
