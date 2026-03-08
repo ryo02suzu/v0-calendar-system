@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Calendar, Users, AlertTriangle, TrendingUp, Clock, CheckCircle2 } from "lucide-react"
 import { getTodayAppointments, getPatientRiskScore } from "@/lib/db"
+import { useRealtimeAppointments } from "@/hooks/use-realtime"
 
 export function Dashboard() {
   const [todayStats, setTodayStats] = useState({
@@ -16,11 +17,7 @@ export function Dashboard() {
   const [highRiskPatients, setHighRiskPatients] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    loadDashboardData()
-  }, [])
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true)
       const appointments = await getTodayAppointments()
@@ -53,7 +50,14 @@ export function Dashboard() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadDashboardData()
+  }, [loadDashboardData])
+
+  // Realtimeによる自動更新（UIは変更しない）
+  useRealtimeAppointments(loadDashboardData)
 
   if (loading) {
     return (

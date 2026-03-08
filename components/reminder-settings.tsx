@@ -12,50 +12,6 @@ import { getReminderSettings, updateReminderSettings, getReminderLogs, sendRemin
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 
-const MOCK_REMINDER_LOGS = [
-  {
-    id: "1",
-    appointment_id: "1",
-    method: "sms",
-    status: "sent",
-    sent_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-    patients: { name: "鈴木一徹" },
-  },
-  {
-    id: "2",
-    appointment_id: "2",
-    method: "email",
-    status: "sent",
-    sent_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), // 5 hours ago
-    patients: { name: "佐藤花子" },
-  },
-  {
-    id: "3",
-    appointment_id: "3",
-    method: "sms",
-    status: "sent",
-    sent_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-    patients: { name: "田中太郎" },
-  },
-  {
-    id: "4",
-    appointment_id: "4",
-    method: "email",
-    status: "failed",
-    sent_at: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(), // 1 day ago
-    patients: { name: "山田次郎" },
-    error_message: "メールアドレスが無効です",
-  },
-  {
-    id: "5",
-    appointment_id: "5",
-    method: "sms",
-    status: "sent",
-    sent_at: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(), // 2 days ago
-    patients: { name: "伊藤美咲" },
-  },
-]
-
 export function ReminderSettings() {
   const { toast } = useToast()
   const [settings, setSettings] = useState<any>({
@@ -66,37 +22,37 @@ export function ReminderSettings() {
     sms_template: "【{{clinic_name}}】\n{{patient_name}}様\n予約のお知らせです。\n\n日時：{{date}} {{time}}\n担当：{{staff_name}}\n\nご来院をお待ちしております。",
     email_template: "{{patient_name}}様\n\nいつも{{clinic_name}}をご利用いただきありがとうございます。\n\nご予約のリマインダーをお送りします。\n\n【予約詳細】\n日時：{{date}} {{time}}\n担当：{{staff_name}}\nメニュー：{{service_name}}\n\n当日は予約時間の5分前までにお越しください。\nご変更やキャンセルの場合は、お早めにご連絡ください。\n\nよろしくお願いいたします。",
   })
-  const [logs, setLogs] = useState<any[]>(MOCK_REMINDER_LOGS) // Initialize with mock data
-  const [isLoading, setIsLoading] = useState(false) // Changed to false for instant display
+  const [logs, setLogs] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
 
-  // useEffect(() => {
-  //   loadData()
-  // }, [])
+  useEffect(() => {
+    loadData()
+  }, [])
 
-  // async function loadData() {
-  //   setIsLoading(true)
-  //   try {
-  //     const [settingsData, logsData] = await Promise.all([getReminderSettings(), getReminderLogs(20)])
+  async function loadData() {
+    setIsLoading(true)
+    try {
+      const [settingsData, logsData] = await Promise.all([getReminderSettings(), getReminderLogs(20)])
 
-  //     setSettings(settingsData)
-  //     setLogs(logsData)
-  //   } catch (error) {
-  //     console.error("[v0] Error loading reminder data:", error)
-  //     toast({
-  //       title: "エラー",
-  //       description: "リマインダー設定の読み込みに失敗しました",
-  //       variant: "destructive",
-  //     })
-  //   } finally {
-  //     setIsLoading(false)
-  //   }
-  // }
+      setSettings(settingsData)
+      setLogs(logsData)
+    } catch (error) {
+      console.error("[v0] Error loading reminder data:", error)
+      toast({
+        title: "エラー",
+        description: "リマインダー設定の読み込みに失敗しました",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   async function handleSave() {
     setIsSaving(true)
     try {
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await updateReminderSettings(settings)
       toast({
         title: "保存しました",
         description: "リマインダー設定を更新しました",

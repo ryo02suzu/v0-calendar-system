@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { CalendarToolbar } from "@/components/calendar-toolbar"
 import { UnitSchedulerView } from "@/components/unit-scheduler-view"
 import { MonthView } from "@/components/month-view"
@@ -14,6 +14,7 @@ import {
   getBusinessHours,
 } from "@/lib/db"
 import { useToast } from "@/hooks/use-toast"
+import { useRealtimeAppointments } from "@/hooks/use-realtime"
 
 export function CalendarView() {
   const [viewMode, setViewMode] = useState<"day" | "week" | "month">("day")
@@ -28,11 +29,7 @@ export function CalendarView() {
   const [initialSlotData, setInitialSlotData] = useState<{ date: string; time: string; chairNumber?: number } | null>(null)
   const { toast } = useToast()
 
-  useEffect(() => {
-    loadData()
-  }, [currentDate])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true)
     try {
       const [appointmentsData, staffData, holidaysData, businessHoursData] = await Promise.all([
@@ -55,7 +52,14 @@ export function CalendarView() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [toast])
+
+  useEffect(() => {
+    loadData()
+  }, [currentDate])
+
+  // Realtimeによる自動更新（UIは変更しない）
+  useRealtimeAppointments(loadData)
 
   const handleCreateAppointment = () => {
     setSelectedAppointment(null)
