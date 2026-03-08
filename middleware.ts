@@ -113,7 +113,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  const useSupabaseAuth = process.env.SUPABASE_AUTH_ENABLED === "true"
+  const useSupabaseAuth = !!(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  )
 
   if (useSupabaseAuth) {
     // === Supabase Auth モード ===

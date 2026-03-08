@@ -11,7 +11,15 @@ vi.mock("@/lib/db", () => ({
 }))
 
 vi.mock("@/lib/security/api-security", () => ({
-  applySecurityChecks: vi.fn().mockReturnValue({ success: true }),
+  applySecurityChecks: vi.fn().mockReturnValue({ passed: true }),
+}))
+
+vi.mock("@/lib/auth/server", () => ({
+  getServerAuth: vi.fn().mockResolvedValue({
+    authenticated: true,
+    user: { id: "test-user", email: "test@example.com", role: "admin", clinicId: "test-clinic" },
+  }),
+  checkServerPermission: vi.fn().mockReturnValue(true),
 }))
 
 import { getReminderLogs } from "@/lib/db"
