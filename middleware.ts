@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { createServerClient } from "@supabase/ssr"
 
 const REALM = "DentalDashboard"
 
@@ -8,6 +8,7 @@ const REALM = "DentalDashboard"
 const PUBLIC_PATHS = [
   "/reserve",
   "/login",
+  "/auth/callback", // OAuth・メール確認コールバック（認証処理前のため認証不要）
   "/api/availability",
   "/api/clinic",
   "/api/services",
@@ -61,47 +62,48 @@ function unauthorizedBasicResponse() {
   })
 }
 
-// === Supabase Auth ===
-async function checkSupabaseAuth(request: NextRequest): Promise<boolean> {
+// === Supabase Auth（@supabase/ssr 使用） ===
+async function checkSupabaseAuth(request: NextRequest): Promise<{ authenticated: boolean; response: NextResponse }> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!supabaseUrl || !supabaseAnonKey) return false
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return { authenticated: false, response: NextResponse.next({ request }) }
+  }
 
-  // CookieからSupabaseセッショントークンを取得
-  const accessToken =
-    request.cookies.get("sb-access-token")?.value ||
-    request.cookies.get(`sb-${new URL(supabaseUrl).hostname.split(".")[0]}-auth-token`)?.value
+  let supabaseResponse = NextResponse.next({ request })
 
-  if (!accessToken) {
-    // ヘッダーからBearerトークンを試す（API呼び出し用）
-    const authHeader = request.headers.get("authorization")
-    if (authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.slice(7)
-      try {
-        const client = createClient(supabaseUrl, supabaseAnonKey)
-        const { data } = await client.auth.getUser(token)
-        return !!data.user
-      } catch {
-        return false
-      }
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll()
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+        supabaseResponse = NextResponse.next({ request })
+        cookiesToSet.forEach(({ name, value, options }) =>
+          supabaseResponse.cookies.set(name, value, options)
+        )
+      },
+    },
+  })
+
+  // ヘッダーからBearerトークンを試す（API呼び出し用）
+  const authHeader = request.headers.get("authorization")
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.slice(7)
+    try {
+      const { data } = await supabase.auth.getUser(token)
+      return { authenticated: !!data.user, response: supabaseResponse }
+    } catch {
+      return { authenticated: false, response: supabaseResponse }
     }
-    return false
   }
 
   try {
-    // Cookieのトークンを検証するためにJSON parseを試す
-    let tokenStr = accessToken
-    try {
-      const parsed = JSON.parse(accessToken)
-      tokenStr = parsed.access_token || parsed[0]?.access_token || accessToken
-    } catch {
-      // JSON parseに失敗した場合はそのまま使用
-    }
-    const client = createClient(supabaseUrl, supabaseAnonKey)
-    const { data } = await client.auth.getUser(tokenStr)
-    return !!data.user
+    const { data: { user } } = await supabase.auth.getUser()
+    return { authenticated: !!user, response: supabaseResponse }
   } catch {
-    return false
+    return { authenticated: false, response: supabaseResponse }
   }
 }
 
@@ -120,15 +122,15 @@ export async function middleware(request: NextRequest) {
 
   if (useSupabaseAuth) {
     // === Supabase Auth モード ===
-    const isAuthenticated = await checkSupabaseAuth(request)
-    if (!isAuthenticated) {
+    const { authenticated, response } = await checkSupabaseAuth(request)
+    if (!authenticated) {
       // 未認証 → ログインページにリダイレクト
       const url = request.nextUrl.clone()
       url.pathname = "/login"
       url.searchParams.set("redirect", pathname)
       return NextResponse.redirect(url)
     }
-    return NextResponse.next()
+    return response
   } else {
     // === Basic Auth モード（従来互換） ===
     const requiredUser = process.env.DASHBOARD_BASIC_AUTH_USER

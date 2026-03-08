@@ -17,15 +17,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { NextRequest } from "next/server"
 
-// Mock @supabase/supabase-js before importing middleware
-vi.mock("@supabase/supabase-js", () => ({
-  createClient: vi.fn(),
+// Mock @supabase/ssr before importing middleware
+vi.mock("@supabase/ssr", () => ({
+  createServerClient: vi.fn(),
 }))
 
-import { createClient } from "@supabase/supabase-js"
+import { createServerClient } from "@supabase/ssr"
 import { middleware } from "@/middleware"
 
-const mockCreateClient = createClient as ReturnType<typeof vi.fn>
+const mockCreateServerClient = createServerClient as ReturnType<typeof vi.fn>
 
 function makeRequest(pathname: string, options: { authorization?: string; cookies?: Record<string, string> } = {}) {
   const url = `https://example.com${pathname}`
@@ -167,7 +167,7 @@ describe("middleware", () => {
     })
 
     it("redirects to /login when not authenticated", async () => {
-      mockCreateClient.mockReturnValue({
+      mockCreateServerClient.mockReturnValue({
         auth: {
           getUser: vi.fn().mockResolvedValue({ data: { user: null } }),
         },
@@ -180,7 +180,7 @@ describe("middleware", () => {
     })
 
     it("includes redirect param in login URL", async () => {
-      mockCreateClient.mockReturnValue({
+      mockCreateServerClient.mockReturnValue({
         auth: {
           getUser: vi.fn().mockResolvedValue({ data: { user: null } }),
         },
@@ -192,7 +192,7 @@ describe("middleware", () => {
     })
 
     it("allows access with valid Bearer token", async () => {
-      mockCreateClient.mockReturnValue({
+      mockCreateServerClient.mockReturnValue({
         auth: {
           getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } } }),
         },
