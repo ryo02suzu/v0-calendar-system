@@ -1,15 +1,16 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/components/auth-provider"
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { signIn } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -26,10 +27,49 @@ export default function LoginPage() {
       setError("メールアドレスまたはパスワードが正しくありません")
       setIsLoading(false)
     } else {
-      router.push("/")
+      const redirectTo = searchParams.get("redirect") || searchParams.get("redirectTo") || "/"
+      router.push(redirectTo)
     }
   }
 
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+      <div className="space-y-2">
+        <Label htmlFor="email">メールアドレス</Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="example@imaizumi-dental.jp"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          autoComplete="email"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="password">パスワード</Label>
+        <Input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          autoComplete="current-password"
+        />
+      </div>
+      <Button type="submit" className="w-full" disabled={isLoading}>
+        {isLoading ? "ログイン中..." : "ログイン"}
+      </Button>
+    </form>
+  )
+}
+
+export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/40 px-4">
       <Card className="w-full max-w-md">
@@ -43,39 +83,9 @@ export default function LoginPage() {
           <CardDescription>管理画面にログイン</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="email">メールアドレス</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="example@imaizumi-dental.jp"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">パスワード</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "ログイン中..." : "ログイン"}
-            </Button>
-          </form>
+          <Suspense fallback={null}>
+            <LoginForm />
+          </Suspense>
         </CardContent>
       </Card>
     </div>
