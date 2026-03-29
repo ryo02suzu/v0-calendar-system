@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "start": "next start",
     "db:migrate": "echo 'Run SQL scripts from scripts/ directory in Supabase SQL Editor or use: npx supabase db push'",
+    "db:validate": "node scripts/validate-env.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
